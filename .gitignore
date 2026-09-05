@@ -1,0 +1,15 @@
+.DS_Store
+
+# Build artifacts
+build/
+release/
+outputs/
+work/
+*.app/
+Brisa/Assets/AppIcon.iconset/
+
+# Swift / Xcode
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
