@@ -7,6 +7,7 @@ struct ContentView: View {
  @State private var mixName=""
  @State private var editingMix: Mix?
  @State private var showInputSounds=false
+ @State private var showSettings=false
  @State private var showWelcome=false
  let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","My mixes"]
  var filtered:[Sound] {library.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
@@ -19,6 +20,7 @@ struct ContentView: View {
    HStack(spacing:16){
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
+    Button { showSettings=true } label: { Image(systemName:"gearshape").font(.system(size:16)).padding(9) }.buttonStyle(.plain).help("Settings")
     Button{showInputSounds=true}label:{Label("Interaction sounds",systemImage:"keyboard").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())}.buttonStyle(.plain)
     HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())
    }.padding(.horizontal,34).padding(.top,25).padding(.bottom,18)
@@ -65,6 +67,7 @@ struct ContentView: View {
   }
  }.frame(minWidth:920,minHeight:640).preferredColorScheme(.dark).tint(accent)
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
+ .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .sheet(isPresented:$showInputSounds){InputSoundsView(input:model.inputSounds)}
  .sheet(isPresented:$showWelcome){WelcomeView{UserDefaults.standard.set(true,forKey:"didSeeWelcome");showWelcome=false}}
  .sheet(item:$editingMix){mix in

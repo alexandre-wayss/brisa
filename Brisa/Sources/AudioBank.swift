@@ -1,5 +1,25 @@
 import Foundation
 import AVFoundation
+
+// Overlap the tail with the head instead of fading the loop to silence.
+// The output wraps from head[overlap - 1] to head[overlap].
+func seamlessLoop(_ source: AVAudioPCMBuffer, seconds: Double = 1.5) -> AVAudioPCMBuffer {
+ let count = Int(source.frameLength)
+ let overlap = min(Int(source.format.sampleRate * seconds), count / 4)
+ guard overlap > 1, let input = source.floatChannelData,
+       let result = AVAudioPCMBuffer(pcmFormat: source.format, frameCapacity: AVAudioFrameCount(count - overlap)),
+       let output = result.floatChannelData else { return source }
+ result.frameLength = AVAudioFrameCount(count - overlap)
+ let middle = count - 2 * overlap
+ for channel in 0..<Int(source.format.channelCount) {
+  for i in 0..<middle { output[channel][i] = input[channel][i + overlap] }
+  for i in 0..<overlap {
+   let phase = Double(i) / Double(overlap - 1) * .pi / 2
+   output[channel][middle + i] = input[channel][count - overlap + i] * Float(cos(phase)) + input[channel][i] * Float(sin(phase))
+  }
+ }
+ return result
+}
 func loadRecording(_ url:URL) throws -> AVAudioPCMBuffer {
  let file=try AVAudioFile(forReading:url)
  let buffer=AVAudioPCMBuffer(pcmFormat:file.processingFormat,frameCapacity:AVAudioFrameCount(file.length))!
@@ -25,7 +45,7 @@ final class AudioBank {
    "beachWaves": "real/real-beach-waves.wav",
    "coffeeShop": "real/real-coffee-shop.wav"
   ]
-  if let path = recordings[id] {let b=try loadRecording(recordingURL(path));buffers[id]=b;return b}
+  if let path = recordings[id] {let b=seamlessLoop(try loadRecording(recordingURL(path)));buffers[id]=b;return b}
   let rate = 24000.0, count = 24000 * 16
   let format = AVAudioFormat(standardFormatWithSampleRate:rate,channels:1)!
   let b = AVAudioPCMBuffer(pcmFormat:format,frameCapacity:AVAudioFrameCount(count))!
@@ -61,13 +81,16 @@ final class AudioBank {
    case "train": x=low*0.9+n*0.1*pow(max(0,sin(2 * .pi*2*t)),16)
    default: x=0
    }
-   // Gentle loop edges prevent discontinuity clicks.
-   let edge = min(1.0,min(Double(i)/1200,Double(count-1-i)/1200))
-   p[i]=Float(tanh(x)*edge)
+   p[i]=Float(tanh(x))
   }
-  buffers[id]=b; return b
+  let loop = seamlessLoop(b)
+  buffers[id]=loop; return loop
  }
  func update(_ levels: [String:Double], playing: Bool, master: Double) throws {
+  guard playing else {
+   for node in players.values { node.pause() }
+   return
+  }
   for (id,level) in levels where level > 0 {
    if players[id] == nil {
     let b=try buffer(id), node=AVAudioPlayerNode(); engine.attach(node)

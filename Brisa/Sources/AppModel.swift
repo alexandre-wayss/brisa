@@ -3,6 +3,7 @@ import Combine
 
 @MainActor
 final class AppModel: ObservableObject {
+    static let shared = AppModel()
     let inputSounds = InputSounds()
 
     @Published var levels: [String: Double] = [:]
@@ -68,7 +69,6 @@ final class AppModel: ObservableObject {
         do { try audio.update(levels, playing: isPlaying, master: masterVolume) }
         catch { self.error = error.localizedDescription; isPlaying = false }
         UserDefaults.standard.set(levels, forKey: "levels")
-        WidgetState.publish(isPlaying: isPlaying, title: nowPlayingTitle, soundCount: levels.count, volume: masterVolume)
     }
 
     var nowPlayingTitle: String {
@@ -77,7 +77,6 @@ final class AppModel: ObservableObject {
     }
 
     private func tickTimer() {
-        if WidgetState.consumePendingAction() == "togglePlayback" { togglePlayback() }
         guard remainingSeconds > 0 else { return }
         remainingSeconds -= 1
         if remainingSeconds == 0 { isPlaying = false; synchronizeAudio() }

@@ -25,23 +25,4 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: local.brisa.ambient
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_FILE: Info.plist
-        CODE_SIGN_ENTITLEMENTS: Brisa.entitlements
         GENERATE_INFOPLIST_FILE: "NO"
-    dependencies:
-      - target: BrisaWidgets
-        embed: true
-  BrisaWidgets:
-    type: app-extension
-    platform: macOS
-    sources:
-      - path: Widgets
-        excludes:
-          - README.md
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: local.brisa.ambient.widgets
-        CODE_SIGN_STYLE: Automatic
-        INFOPLIST_FILE: Widgets/Info.plist
-        CODE_SIGN_ENTITLEMENTS: Widgets/BrisaWidgets.entitlements
-        GENERATE_INFOPLIST_FILE: "NO"
-        SKIP_INSTALL: "YES"
