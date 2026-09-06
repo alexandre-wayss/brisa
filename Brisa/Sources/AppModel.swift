@@ -28,7 +28,8 @@ final class AppModel: ObservableObject {
         }
         volumeBeforeMute = masterVolume > 0 ? masterVolume : 0.65
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tickTimer() }
+            guard let model = self else { return }
+            Task { @MainActor [weak model] in model?.tickTimer() }
         }
     }
 
