@@ -4,7 +4,9 @@ Brisa is a native macOS ambient-sound app for focus, rest, and sleep. Build a so
 
 ## Interface preview
 
-![Brisa main interface](Brisa/Assets/screenshots/brisa-main.svg)
+![Brisa main interface](Brisa/Assets/screenshots/brisa-main.png)
+
+![Brisa desktop mini player](Brisa/Assets/screenshots/brisa-widget.gif)
 
 ## Features
 
@@ -14,7 +16,7 @@ Brisa is a native macOS ambient-sound app for focus, rest, and sleep. Build a so
 - global keyboard and mouse sounds using recorded samples.
 - A first-run welcome flow and local, persistent preferences.
 
-## Widgets
+## Desktop mini player
 
 Brisa includes an optional glass mini player for the desktop. Open Settings → Widgets to add it, drag it from any area except the volume controls, and use the pin and lock buttons on the player itself. Its position and preferences are saved locally.
 
