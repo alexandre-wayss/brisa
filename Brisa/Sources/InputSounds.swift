@@ -51,12 +51,13 @@ let mouseTones:[InputTone]=[
   if !keyboardTones.contains(where:{$0.id==keyboardStyle}) {keyboardStyle="kc1000"}
   if !mouseTones.contains(where:{$0.id==mouseStyle}) {mouseStyle="mouse-recorded"}
   permissionTimer=Timer.scheduledTimer(withTimeInterval:2,repeats:true){[weak self] _ in
-   Task { @MainActor in
-    guard let self=self else{return}
+   guard let service=self else{return}
+   Task { @MainActor [weak service] in
+    guard let service else{return}
     let current=AXIsProcessTrusted(), listen=CGPreflightListenEventAccess()
-    self.secureInput=IsSecureEventInputEnabled()
-    if current != self.trusted || listen != self.listenAllowed {
-     self.trusted=current;self.listenAllowed=listen;self.configure()
+    service.secureInput=IsSecureEventInputEnabled()
+    if current != service.trusted || listen != service.listenAllowed {
+     service.trusted=current;service.listenAllowed=listen;service.configure()
     }
    }
   }
