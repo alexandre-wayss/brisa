@@ -1,0 +1,494 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		13F68AD52B8A544128976A02 /* MenuBarPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4062B3DB9846BC4D246A36CC /* MenuBarPlayerView.swift */; };
+		18AA2EFF13BAA71C43097A7D /* SoundLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F591E43CDC7F5BC3355E174 /* SoundLibrary.swift */; };
+		283589973178C51ACB08E9E2 /* BrisaWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FB2DEDD8B8E0471564F34271 /* BrisaWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		369937A5DA55F518340F61DF /* MixEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5920DD25C75ABF9D3606CE60 /* MixEditor.swift */; };
+		391E94FBC315BFB6B511FC5E /* AppEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A84989BD1BA033E80E971671 /* AppEntry.swift */; };
+		40214DB63F42605020A0CC91 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A934D2D26B6C834DF712558 /* WelcomeView.swift */; };
+		72025A313DD91DE849E82668 /* Brisa.icns in Resources */ = {isa = PBXBuildFile; fileRef = 20D18B2568C9B99D6EEB821A /* Brisa.icns */; };
+		7DF38E242415B73ADFBC9EF2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05E9C5BA1029142EF4CEA50 /* AppModel.swift */; };
+		87F0A33F50B2DA154B9B6062 /* InputSounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = D018C800F9C0E67672881024 /* InputSounds.swift */; };
+		8C6A8B004F32551C266073D2 /* WidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F356B94C4941A98C06BA9C90 /* WidgetState.swift */; };
+		9B93667BDCF70CB951C74B3C /* BrisaWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D591518D55FEE61ACDAACD83 /* BrisaWidgets.swift */; };
+		A127CF275F25615E258D68D1 /* ARCHITECTURE.md in Resources */ = {isa = PBXBuildFile; fileRef = BE7ECCF7CFD8CF7FEC1BACEE /* ARCHITECTURE.md */; };
+		BA20A0C4DC4B9C4542075BF5 /* AudioBank.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8760EBC2C89B3ABB1FBD2D /* AudioBank.swift */; };
+		C4F649AA8A11C5506C952C13 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C833F95CD8DC84FEED2D47F7 /* ContentView.swift */; };
+		EB048C3B6F73CC64ABD9C808 /* InputSoundsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749B533C75C9AC9F23CFB6CF /* InputSoundsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2AE08D75DD119DE18024FF1D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4A1984492DC2971FB43E60A9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AD0325B5B6E9BE707F9C78AA;
+			remoteInfo = BrisaWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAE0EDE62CDE4E03BDCD63B1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				283589973178C51ACB08E9E2 /* BrisaWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1A934D2D26B6C834DF712558 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		20D18B2568C9B99D6EEB821A /* Brisa.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Brisa.icns; sourceTree = "<group>"; };
+		4062B3DB9846BC4D246A36CC /* MenuBarPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPlayerView.swift; sourceTree = "<group>"; };
+		5920DD25C75ABF9D3606CE60 /* MixEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixEditor.swift; sourceTree = "<group>"; };
+		749B533C75C9AC9F23CFB6CF /* InputSoundsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSoundsView.swift; sourceTree = "<group>"; };
+		7C8760EBC2C89B3ABB1FBD2D /* AudioBank.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioBank.swift; sourceTree = "<group>"; };
+		7F591E43CDC7F5BC3355E174 /* SoundLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundLibrary.swift; sourceTree = "<group>"; };
+		A84989BD1BA033E80E971671 /* AppEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
+		B188D741E4DFA21FB6149CC5 /* BrisaWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BrisaWidgets.entitlements; sourceTree = "<group>"; };
+		BE7ECCF7CFD8CF7FEC1BACEE /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
+		C60CF999314BB38FA756993A /* Brisa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Brisa.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C833F95CD8DC84FEED2D47F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D018C800F9C0E67672881024 /* InputSounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSounds.swift; sourceTree = "<group>"; };
+		D591518D55FEE61ACDAACD83 /* BrisaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrisaWidgets.swift; sourceTree = "<group>"; };
+		E05E9C5BA1029142EF4CEA50 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		E1731F155F92EC7BB796DC16 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F356B94C4941A98C06BA9C90 /* WidgetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetState.swift; sourceTree = "<group>"; };
+		FB2DEDD8B8E0471564F34271 /* BrisaWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BrisaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0D96D503B4FEA277383E8D14 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				B188D741E4DFA21FB6149CC5 /* BrisaWidgets.entitlements */,
+				D591518D55FEE61ACDAACD83 /* BrisaWidgets.swift */,
+				E1731F155F92EC7BB796DC16 /* Info.plist */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		60DF83C8693222F945E4E3EB /* Assets */ = {
+			isa = PBXGroup;
+			children = (
+				20D18B2568C9B99D6EEB821A /* Brisa.icns */,
+			);
+			path = Assets;
+			sourceTree = "<group>";
+		};
+		94B8265AF7468804951E7FE9 = {
+			isa = PBXGroup;
+			children = (
+				60DF83C8693222F945E4E3EB /* Assets */,
+				A81DF666B909865951851DC7 /* Sources */,
+				0D96D503B4FEA277383E8D14 /* Widgets */,
+				DCDFBDECB914DCE94AEE5BD3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A81DF666B909865951851DC7 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A84989BD1BA033E80E971671 /* AppEntry.swift */,
+				E05E9C5BA1029142EF4CEA50 /* AppModel.swift */,
+				BE7ECCF7CFD8CF7FEC1BACEE /* ARCHITECTURE.md */,
+				7C8760EBC2C89B3ABB1FBD2D /* AudioBank.swift */,
+				C833F95CD8DC84FEED2D47F7 /* ContentView.swift */,
+				D018C800F9C0E67672881024 /* InputSounds.swift */,
+				749B533C75C9AC9F23CFB6CF /* InputSoundsView.swift */,
+				4062B3DB9846BC4D246A36CC /* MenuBarPlayerView.swift */,
+				5920DD25C75ABF9D3606CE60 /* MixEditor.swift */,
+				7F591E43CDC7F5BC3355E174 /* SoundLibrary.swift */,
+				1A934D2D26B6C834DF712558 /* WelcomeView.swift */,
+				F356B94C4941A98C06BA9C90 /* WidgetState.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		DCDFBDECB914DCE94AEE5BD3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C60CF999314BB38FA756993A /* Brisa.app */,
+				FB2DEDD8B8E0471564F34271 /* BrisaWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AD0325B5B6E9BE707F9C78AA /* BrisaWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AD25B507ACF6C452C5D052C /* Build configuration list for PBXNativeTarget "BrisaWidgets" */;
+			buildPhases = (
+				812069B92AD4B9D3E2BFE560 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BrisaWidgets;
+			packageProductDependencies = (
+			);
+			productName = BrisaWidgets;
+			productReference = FB2DEDD8B8E0471564F34271 /* BrisaWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		F2C8A7152E14D1A37FF219CF /* Brisa */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 04B96B0F09869867B28BDFE2 /* Build configuration list for PBXNativeTarget "Brisa" */;
+			buildPhases = (
+				C2F076C43811A25F016CA56C /* Sources */,
+				E7BB7D905076B93D5593C44A /* Resources */,
+				FAE0EDE62CDE4E03BDCD63B1 /* Embed Foundation Extensions */,
+				7FA276AD86AD56ACD539F5A5 /* Copy Brisa audio library */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5ADDBDE83D5D9C830C9987F7 /* PBXTargetDependency */,
+			);
+			name = Brisa;
+			packageProductDependencies = (
+			);
+			productName = Brisa;
+			productReference = C60CF999314BB38FA756993A /* Brisa.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4A1984492DC2971FB43E60A9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = B7E6927FEBE4BAEC485A85B8 /* Build configuration list for PBXProject "Brisa" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 94B8265AF7468804951E7FE9;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DCDFBDECB914DCE94AEE5BD3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F2C8A7152E14D1A37FF219CF /* Brisa */,
+				AD0325B5B6E9BE707F9C78AA /* BrisaWidgets */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E7BB7D905076B93D5593C44A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A127CF275F25615E258D68D1 /* ARCHITECTURE.md in Resources */,
+				72025A313DD91DE849E82668 /* Brisa.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		7FA276AD86AD56ACD539F5A5 /* Copy Brisa audio library */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Brisa audio library";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\ncp -R \"$SRCROOT/Resources/Audio\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Audio\"\ncp \"$SRCROOT/Resources/CREDITOS-AUDIO.md\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/CREDITOS-AUDIO.md\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		812069B92AD4B9D3E2BFE560 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9B93667BDCF70CB951C74B3C /* BrisaWidgets.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2F076C43811A25F016CA56C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				391E94FBC315BFB6B511FC5E /* AppEntry.swift in Sources */,
+				7DF38E242415B73ADFBC9EF2 /* AppModel.swift in Sources */,
+				BA20A0C4DC4B9C4542075BF5 /* AudioBank.swift in Sources */,
+				C4F649AA8A11C5506C952C13 /* ContentView.swift in Sources */,
+				87F0A33F50B2DA154B9B6062 /* InputSounds.swift in Sources */,
+				EB048C3B6F73CC64ABD9C808 /* InputSoundsView.swift in Sources */,
+				13F68AD52B8A544128976A02 /* MenuBarPlayerView.swift in Sources */,
+				369937A5DA55F518340F61DF /* MixEditor.swift in Sources */,
+				18AA2EFF13BAA71C43097A7D /* SoundLibrary.swift in Sources */,
+				40214DB63F42605020A0CC91 /* WelcomeView.swift in Sources */,
+				8C6A8B004F32551C266073D2 /* WidgetState.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5ADDBDE83D5D9C830C9987F7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AD0325B5B6E9BE707F9C78AA /* BrisaWidgets */;
+			targetProxy = 2AE08D75DD119DE18024FF1D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		113BDB4F1B9380E39D20DBF2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		1959C6F3E57CB43C79597018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widgets/BrisaWidgets.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.brisa.ambient.widgets;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		2D065A279EC51EC92AD3D369 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Brisa.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.brisa.ambient;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		81CA9D7C79DD5549ADFBB93D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widgets/BrisaWidgets.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.brisa.ambient.widgets;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		E0575E5DA7FC5B5EDC4A6048 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E62E6DBAB1D1989725ACEBDE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Brisa.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.brisa.ambient;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		04B96B0F09869867B28BDFE2 /* Build configuration list for PBXNativeTarget "Brisa" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2D065A279EC51EC92AD3D369 /* Debug */,
+				E62E6DBAB1D1989725ACEBDE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5AD25B507ACF6C452C5D052C /* Build configuration list for PBXNativeTarget "BrisaWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81CA9D7C79DD5549ADFBB93D /* Debug */,
+				1959C6F3E57CB43C79597018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B7E6927FEBE4BAEC485A85B8 /* Build configuration list for PBXProject "Brisa" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E0575E5DA7FC5B5EDC4A6048 /* Debug */,
+				113BDB4F1B9380E39D20DBF2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4A1984492DC2971FB43E60A9 /* Project object */;
+}
