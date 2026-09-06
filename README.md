@@ -14,6 +14,10 @@ Brisa is a native macOS ambient-sound app for focus, rest, and sleep. Build a so
 - global keyboard and mouse sounds using recorded samples.
 - A first-run welcome flow and local, persistent preferences.
 
+## Widgets
+
+The repository includes a glass-style WidgetKit player for the Mac desktop and a compact Control Center play/pause control for macOS 26 or later. They share playback state through an App Group; see [widget setup](Brisa/Widgets/README.md) when building the signed Xcode app target.
+
 ## Build from source
 
 Install Xcode Command Line Tools first:
