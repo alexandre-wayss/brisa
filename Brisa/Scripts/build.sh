@@ -13,7 +13,9 @@ fi
 
 mkdir -p "${output_dir}/Contents/MacOS" "${output_dir}/Contents/Resources"
 
-swiftc -parse-as-library "${project_dir}/Sources.swift" \
+source_files=("${project_dir}/Sources.swift" "${project_dir}/Sources/"*.swift)
+
+swiftc -parse-as-library "${source_files[@]}" \
   -o "${output_dir}/Contents/MacOS/Brisa" \
   -module-cache-path "${project_dir}/build/ModuleCache" \
   -framework SwiftUI \

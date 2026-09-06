@@ -278,13 +278,13 @@ struct InputSoundsView:View {
    Toggle("Play sound when a key is pressed",isOn:$input.keyboard).onChange(of:input.keyboard){_ in input.configure()}
    HStack{
     Picker("Keyboard",selection:$input.keyboardStyle){ForEach(keyboardTones){Text($0.name).tag($0.id)}}
-    Button("Ouvir"){input.play(mouse:false)}.help("Ouvir estilo de teclado")
+    Button("Preview"){input.play(mouse:false)}.help("Preview keyboard style")
    }
    Text(keyboardTones.first(where:{$0.id==input.keyboardStyle})?.detail ?? "").font(.caption).foregroundStyle(.secondary)
    Toggle("Play sound when the mouse is clicked",isOn:$input.mouse).onChange(of:input.mouse){_ in input.configure()}
    HStack{
     Picker("Mouse",selection:$input.mouseStyle){ForEach(mouseTones){Text($0.name).tag($0.id)}}
-    Button("Ouvir"){input.play(mouse:true)}.help("Ouvir estilo de mouse")
+    Button("Preview"){input.play(mouse:true)}.help("Preview mouse style")
    }
    Text(mouseTones.first(where:{$0.id==input.mouseStyle})?.detail ?? "").font(.caption).foregroundStyle(.secondary)
    HStack{Text("Volume");Slider(value:$input.volume,in:0...1);Text("\(Int(input.volume*100))%").monospacedDigit().frame(width:42)}
@@ -309,42 +309,6 @@ struct InputSoundsView:View {
  }
 }
 
-@MainActor final class Model: ObservableObject {
- let inputSounds=InputSounds()
- @Published var levels: [String:Double] = [:]
- @Published var favorites: Set<String> = []
- @Published var mixes: [Mix] = []
- @Published var playing=false
- @Published var master=(UserDefaults.standard.object(forKey:"masterVolume") as? Double) ?? 0.65 {
-  didSet {UserDefaults.standard.set(master,forKey:"masterVolume")}
- }
- @Published var remaining=0
- @Published var error: String?
- private var volumeBeforeMute: Double = 0.65
- let audio=AudioBank()
- var timer: Timer?
- init() {
-  levels=UserDefaults.standard.dictionary(forKey:"levels") as? [String:Double] ?? [:]
-  favorites=Set(UserDefaults.standard.stringArray(forKey:"favorites") ?? [])
-  if let d=UserDefaults.standard.data(forKey:"mixes"),let m=try? JSONDecoder().decode([Mix].self,from:d) { mixes=m }
-  volumeBeforeMute=master > 0 ? master : 0.65
-  timer=Timer.scheduledTimer(withTimeInterval:1,repeats:true) { [weak self] _ in Task { @MainActor in
-   guard let self=self,self.remaining>0 else{return}; self.remaining-=1
-   if self.remaining==0 { self.playing=false; self.sync() }
-   else if self.remaining<=15 { self.audio.engine.mainMixerNode.outputVolume=Float(self.master)*Float(self.remaining)/15 }
-  }}
- }
- func sync() { do { try audio.update(levels,playing:playing,master:master) } catch { self.error=error.localizedDescription; playing=false }; UserDefaults.standard.set(levels,forKey:"levels") }
- func toggle(_ id:String) { if levels[id] != nil {levels.removeValue(forKey:id)} else {levels[id]=0.05;playing=true}; if levels.isEmpty{playing=false};sync() }
- func play() { if levels.isEmpty{levels["rain"]=0.05}; playing.toggle();sync() }
- func toggleMute() { if master > 0 {volumeBeforeMute=master;master=0} else {master=volumeBeforeMute};sync() }
- func replace(with sound:Sound) { levels=[sound.id:0.05];playing=true;sync() }
- var nowPlayingTitle:String { let names=levels.keys.compactMap{id in library.first(where:{$0.id==id})?.name}; return names.isEmpty ? "No sounds selected" : names.prefix(2).joined(separator:" + ") }
- func favorite(_ id:String) { if favorites.contains(id){favorites.remove(id)}else{favorites.insert(id)};UserDefaults.standard.set(Array(favorites),forKey:"favorites") }
- func save(_ name:String) { mixes.append(Mix(name:name,levels:levels));persistMixes() }
- func persistMixes(){if let d=try? JSONEncoder().encode(mixes){UserDefaults.standard.set(d,forKey:"mixes")}}
- func preset(_ levels:[String:Double]) {self.levels=levels;playing=true;sync()}
-}
 let accent=Color(red:0.66,green:0.79,blue:0.63)
 struct WelcomeView: View {
  @State private var page = 0
@@ -374,7 +338,7 @@ struct WelcomeView: View {
  }
 }
 struct ContentView: View {
- @ObservedObject var model: Model
+ @ObservedObject var model: AppModel
  @State private var category="All sounds"
  @State private var search=""
  @State private var save=false
@@ -412,19 +376,19 @@ struct ContentView: View {
       ForEach(model.mixes){mix in
        HStack(spacing:16){
         Button{
-         if model.playing && model.levels == mix.levels {model.playing=false;model.sync()}
-         else {model.preset(mix.levels)}
+         if model.isPlaying && model.levels == mix.levels {model.isPlaying=false;model.synchronizeAudio()}
+         else {model.applyMix(mix.levels)}
         }label:{
-         Image(systemName:model.playing && model.levels == mix.levels ? "pause.fill":"play.fill")
+         Image(systemName:model.isPlaying && model.levels == mix.levels ? "pause.fill":"play.fill")
           .font(.system(size:15)).foregroundStyle(Color.black.opacity(0.8))
           .frame(width:40,height:40).background(accent,in:Circle())
         }.buttonStyle(.plain)
-         .accessibilityLabel(model.playing && model.levels == mix.levels ? "Pause \(mix.name)":"Play \(mix.name)")
-        Button{model.preset(mix.levels)}label:{
+         .accessibilityLabel(model.isPlaying && model.levels == mix.levels ? "Pause \(mix.name)":"Play \(mix.name)")
+        Button{model.applyMix(mix.levels)}label:{
          VStack(alignment:.leading,spacing:5){Text(mix.name).font(.system(size:15,weight:.medium));Text("\(mix.levels.count) sons").font(.caption).foregroundStyle(.secondary)}
         }.buttonStyle(.plain)
         Spacer()
-        if model.playing && model.levels == mix.levels {Text("Playing").font(.caption).foregroundStyle(accent)}
+        if model.isPlaying && model.levels == mix.levels {Text("Playing").font(.caption).foregroundStyle(accent)}
         Button{editingMix=mix}label:{Image(systemName:"pencil")}.buttonStyle(.borderless).accessibilityLabel("Edit \(mix.name)").help("Edit mix")
         Button{model.mixes.removeAll{$0.id==mix.id};model.persistMixes()}label:{Image(systemName:"trash")}.buttonStyle(.borderless).accessibilityLabel("Delete \(mix.name)")
        }.padding(20).background(.white.opacity(0.04),in:RoundedRectangle(cornerRadius:14))
@@ -438,7 +402,7 @@ struct ContentView: View {
    player.padding(.horizontal,26).padding(.bottom,22)
   }
  }.frame(minWidth:920,minHeight:640).preferredColorScheme(.dark).tint(accent)
- .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.save(mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
+ .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
  .sheet(isPresented:$showInputSounds){InputSoundsView(input:model.inputSounds)}
  .sheet(isPresented:$showWelcome){WelcomeView{UserDefaults.standard.set(true,forKey:"didSeeWelcome");showWelcome=false}}
  .sheet(item:$editingMix){mix in
@@ -447,7 +411,7 @@ struct ContentView: View {
     let wasCurrent=model.levels == model.mixes[index].levels
     model.mixes[index]=updated
     model.persistMixes()
-    if wasCurrent {model.levels=updated.levels;model.sync()}
+    if wasCurrent {model.levels=updated.levels;model.synchronizeAudio()}
    }
   }
  }
@@ -456,23 +420,23 @@ struct ContentView: View {
  }
  func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
  func empty(_ title:String,_ detail:String)->some View {VStack(spacing:12){Image(systemName:"wind").font(.largeTitle).foregroundStyle(accent);Text(title).font(.title3);Text(detail).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(.vertical,70)}
- func preset(_ name:String,_ symbol:String,_ levels:[String:Double])->some View {Button{model.preset(levels)}label:{HStack{Image(systemName:symbol).foregroundStyle(accent);Text(name).font(.system(size:12,weight:.medium));Spacer();Image(systemName:"arrow.up.right").font(.caption).foregroundStyle(.secondary)}.padding(18).frame(maxWidth:.infinity).background(accent.opacity(0.07),in:RoundedRectangle(cornerRadius:13))}.buttonStyle(.plain)}
+ func preset(_ name:String,_ symbol:String,_ levels:[String:Double])->some View {Button{model.applyMix(levels)}label:{HStack{Image(systemName:symbol).foregroundStyle(accent);Text(name).font(.system(size:12,weight:.medium));Spacer();Image(systemName:"arrow.up.right").font(.caption).foregroundStyle(.secondary)}.padding(18).frame(maxWidth:.infinity).background(accent.opacity(0.07),in:RoundedRectangle(cornerRadius:13))}.buttonStyle(.plain)}
  func card(_ sound:Sound)->some View {
  let active=model.levels[sound.id] != nil
  return VStack(alignment:.leading,spacing:15){
-  HStack{Button{model.toggle(sound.id)}label:{Image(systemName:sound.icon).font(.system(size:27,weight:.light)).foregroundStyle(active ? accent:.secondary).frame(width:44,height:38)}.buttonStyle(.plain).accessibilityLabel("Toggle \(sound.name)");Spacer();Button{model.favorite(sound.id)}label:{Image(systemName:model.favorites.contains(sound.id) ? "heart.fill":"heart").foregroundStyle(model.favorites.contains(sound.id) ? accent:Color.secondary)}.buttonStyle(.plain).accessibilityLabel("Favorite \(sound.name)")}
+  HStack{Button{model.toggle(sound.id)}label:{Image(systemName:sound.icon).font(.system(size:27,weight:.light)).foregroundStyle(active ? accent:.secondary).frame(width:44,height:38)}.buttonStyle(.plain).accessibilityLabel("Toggle \(sound.name)");Spacer();Button{model.setFavorite(sound.id)}label:{Image(systemName:model.favorites.contains(sound.id) ? "heart.fill":"heart").foregroundStyle(model.favorites.contains(sound.id) ? accent:Color.secondary)}.buttonStyle(.plain).accessibilityLabel("Favorite \(sound.name)")}
   Button{model.toggle(sound.id)}label:{VStack(alignment:.leading,spacing:5){Text(sound.name).font(.system(size:15,weight:.medium));Text(sound.detail).font(.system(size:11)).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain)
-  HStack{if active {Slider(value:Binding(get:{model.levels[sound.id] ?? 0.5},set:{model.levels[sound.id]=$0;model.sync()}),in:0...1).accessibilityLabel("Volume for \(sound.name)");Text("\(Int((model.levels[sound.id] ?? 0)*100))").font(.system(size:10,design:.monospaced)).foregroundStyle(accent).frame(width:25)}else{Text("Add to mix").font(.system(size:10)).foregroundStyle(.tertiary);Spacer();Button{model.toggle(sound.id)}label:{Image(systemName:"plus.circle").foregroundStyle(.secondary)}.buttonStyle(.plain)}}.frame(height:20)
+  HStack{if active {Slider(value:Binding(get:{model.levels[sound.id] ?? 0.5},set:{model.levels[sound.id]=$0;model.synchronizeAudio()}),in:0...1).accessibilityLabel("Volume for \(sound.name)");Text("\(Int((model.levels[sound.id] ?? 0)*100))").font(.system(size:10,design:.monospaced)).foregroundStyle(accent).frame(width:25)}else{Text("Add to mix").font(.system(size:10)).foregroundStyle(.tertiary);Spacer();Button{model.toggle(sound.id)}label:{Image(systemName:"plus.circle").foregroundStyle(.secondary)}.buttonStyle(.plain)}}.frame(height:20)
  }.padding(18).background(.ultraThinMaterial,in:RoundedRectangle(cornerRadius:20)).overlay(RoundedRectangle(cornerRadius:20).fill(active ? accent.opacity(0.12):.white.opacity(0.025)).allowsHitTesting(false)).overlay(RoundedRectangle(cornerRadius:20).stroke(active ? accent.opacity(0.55):.white.opacity(0.13),lineWidth:1).allowsHitTesting(false)).shadow(color:.black.opacity(0.14),radius:14,y:7)
  }
  var player:some View {
  HStack(spacing:18){
-  Button{model.play()}label:{Image(systemName:model.playing ? "pause.fill":"play.fill").font(.system(size:21,weight:.bold)).foregroundStyle(Color.black.opacity(0.78)).frame(width:56,height:56).background(accent,in:Circle()).shadow(color:accent.opacity(0.35),radius:12,y:5)}.buttonStyle(.plain).keyboardShortcut(.space,modifiers:[]).accessibilityLabel(model.playing ? "Pause":"Play")
-  VStack(alignment:.leading,spacing:6){HStack(spacing:7){Circle().fill(model.playing ? accent:Color.secondary).frame(width:7,height:7);Text(model.playing ? "Now playing" : "Ready to play").font(.system(size:14,weight:.semibold))};Text("\(model.levels.count) sounds in your mix").font(.system(size:11)).foregroundStyle(.secondary)}
+  Button{model.togglePlayback()}label:{Image(systemName:model.isPlaying ? "pause.fill":"play.fill").font(.system(size:21,weight:.bold)).foregroundStyle(Color.black.opacity(0.78)).frame(width:56,height:56).background(accent,in:Circle()).shadow(color:accent.opacity(0.35),radius:12,y:5)}.buttonStyle(.plain).keyboardShortcut(.space,modifiers:[]).accessibilityLabel(model.isPlaying ? "Pause":"Play")
+  VStack(alignment:.leading,spacing:6){HStack(spacing:7){Circle().fill(model.isPlaying ? accent:Color.secondary).frame(width:7,height:7);Text(model.isPlaying ? "Now playing" : "Ready to play").font(.system(size:14,weight:.semibold))};Text("\(model.levels.count) sounds in your mix").font(.system(size:11)).foregroundStyle(.secondary)}
   Spacer(minLength:8)
-  VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.master,in:0...1).frame(width:130).onChange(of:model.master){_ in model.sync()}.accessibilityLabel("Master volume");Text("\(Int(model.master*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};Text(model.remaining>0 ? String(format:"Ends in %02d:%02d",model.remaining/60,model.remaining%60):"No timer").font(.system(size:10)).foregroundStyle(.secondary)}
-  Menu{Button("Off"){model.remaining=0;model.sync()};ForEach([5,15,25,30,60,90],id:\.self){m in Button("\(m) minutes"){model.remaining=m*60;model.sync()}}}label:{Image(systemName:"timer").font(.system(size:15,weight:.medium)).frame(width:38,height:38).background(.white.opacity(0.10),in:Circle())}.menuStyle(.borderlessButton).fixedSize()
-  Button("Clear"){model.levels=[:];model.playing=false;model.sync()}.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).disabled(model.levels.isEmpty)
+  VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.masterVolume,in:0...1).frame(width:130).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume");Text("\(Int(model.masterVolume*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};Text(model.remainingSeconds>0 ? String(format:"Ends in %02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"No timer").font(.system(size:10)).foregroundStyle(.secondary)}
+  Menu{Button("Off"){model.remainingSeconds=0;model.synchronizeAudio()};ForEach([5,15,25,30,60,90],id:\.self){m in Button("\(m) minutes"){model.remainingSeconds=m*60;model.synchronizeAudio()}}}label:{Image(systemName:"timer").font(.system(size:15,weight:.medium)).frame(width:38,height:38).background(.white.opacity(0.10),in:Circle())}.menuStyle(.borderlessButton).fixedSize()
+  Button("Clear"){model.levels=[:];model.isPlaying=false;model.synchronizeAudio()}.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).disabled(model.levels.isEmpty)
   Button{save=true}label:{Image(systemName:"plus").font(.system(size:13,weight:.bold)).frame(width:38,height:38).background(accent.opacity(0.20),in:Circle())}.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel("Save mix").disabled(model.levels.isEmpty)
  }.padding(16).background(.ultraThinMaterial,in:RoundedRectangle(cornerRadius:24)).overlay(RoundedRectangle(cornerRadius:24).stroke(.white.opacity(0.16),lineWidth:1).allowsHitTesting(false)).shadow(color:.black.opacity(0.22),radius:22,y:10)
  }
@@ -496,7 +460,7 @@ struct MixEditor: View {
        if enabled {draft.levels[sound.id]=0.05}else{draft.levels.removeValue(forKey:sound.id)}
       })){Label(sound.name,systemImage:sound.icon)}.toggleStyle(.checkbox).frame(width:220,alignment:.leading)
       if draft.levels[sound.id] != nil {
-       Slider(value:Binding(get:{draft.levels[sound.id] ?? 0.5},set:{draft.levels[sound.id]=$0}),in:0...1).accessibilityLabel("Volume de \(sound.name)")
+       Slider(value:Binding(get:{draft.levels[sound.id] ?? 0.5},set:{draft.levels[sound.id]=$0}),in:0...1).accessibilityLabel("Volume for \(sound.name)")
        Text("\(Int((draft.levels[sound.id] ?? 0)*100))%").font(.caption.monospacedDigit()).frame(width:40,alignment:.trailing)
       }else{Spacer()}
      }.padding(.vertical,5)
@@ -516,33 +480,26 @@ struct MixEditor: View {
  }
 }
 struct MenuBarPlayerView: View {
- @ObservedObject var model: Model
+ @ObservedObject var model: AppModel
  var body: some View {
   VStack(spacing:16){
    HStack(spacing:11){
     Image(systemName:"wind").font(.system(size:17,weight:.semibold)).foregroundStyle(accent).frame(width:34,height:34).background(accent.opacity(0.16),in:Circle())
-    VStack(alignment:.leading,spacing:2){Text("brisa").font(.system(size:15,weight:.semibold,design:.rounded));Text(model.playing ? "Now playing" : "Paused").font(.system(size:10,weight:.medium)).foregroundStyle(model.playing ? accent:.secondary)}
+    VStack(alignment:.leading,spacing:2){Text("brisa").font(.system(size:15,weight:.semibold,design:.rounded));Text(model.isPlaying ? "Now playing" : "Paused").font(.system(size:10,weight:.medium)).foregroundStyle(model.isPlaying ? accent:.secondary)}
     Spacer()
-    Button{NSApp.activate(ignoringOtherApps:true);NSApp.windows.first?.makeKeyAndOrderFront(nil)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").font(.caption).frame(width:28,height:28).background(.white.opacity(0.08),in:Circle())}.buttonStyle(.plain).help("Abrir Brisa")
+    Button{NSApp.activate(ignoringOtherApps:true);NSApp.windows.first?.makeKeyAndOrderFront(nil)}label:{Image(systemName:"arrow.up.left.and.arrow.down.right").font(.caption).frame(width:28,height:28).background(.white.opacity(0.08),in:Circle())}.buttonStyle(.plain).help("Open Brisa")
    }
    VStack(alignment:.leading,spacing:5){Text(model.nowPlayingTitle).font(.system(size:16,weight:.medium)).lineLimit(1);Text("\(model.levels.count) sounds in your mix").font(.system(size:11)).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading)
    HStack(spacing:12){
-    Button{model.play()}label:{Image(systemName:model.playing ? "pause.fill":"play.fill").font(.system(size:15,weight:.bold)).foregroundStyle(Color.black.opacity(0.8)).frame(width:42,height:42).background(accent,in:Circle())}.buttonStyle(.plain).accessibilityLabel(model.playing ? "Pause":"Play")
-    Button{model.toggleMute()}label:{Image(systemName:model.master == 0 ? "speaker.slash.fill":"speaker.wave.2.fill").font(.system(size:14)).frame(width:34,height:34).background(.white.opacity(0.09),in:Circle())}.buttonStyle(.plain).accessibilityLabel(model.master == 0 ? "Unmute":"Mute")
-    Slider(value:$model.master,in:0...1).frame(width:116).onChange(of:model.master){_ in model.sync()}.accessibilityLabel("Master volume")
-    Text("\(Int(model.master*100))%").font(.system(size:10,design:.monospaced)).foregroundStyle(.secondary).frame(width:27)
+    Button{model.togglePlayback()}label:{Image(systemName:model.isPlaying ? "pause.fill":"play.fill").font(.system(size:15,weight:.bold)).foregroundStyle(Color.black.opacity(0.8)).frame(width:42,height:42).background(accent,in:Circle())}.buttonStyle(.plain).accessibilityLabel(model.isPlaying ? "Pause":"Play")
+    Button{model.toggleMute()}label:{Image(systemName:model.masterVolume == 0 ? "speaker.slash.fill":"speaker.wave.2.fill").font(.system(size:14)).frame(width:34,height:34).background(.white.opacity(0.09),in:Circle())}.buttonStyle(.plain).accessibilityLabel(model.masterVolume == 0 ? "Unmute":"Mute")
+    Slider(value:$model.masterVolume,in:0...1).frame(width:116).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume")
+    Text("\(Int(model.masterVolume*100))%").font(.system(size:10,design:.monospaced)).foregroundStyle(.secondary).frame(width:27)
    }
    Divider().overlay(.white.opacity(0.16))
-   HStack{Text("Switch sound").font(.system(size:12,weight:.medium));Spacer();Menu{ForEach(library){sound in Button{model.replace(with:sound)}label:{Label(sound.name,systemImage:sound.icon)}}}label:{HStack(spacing:5){Text("Choose");Image(systemName:"chevron.up.chevron.down").font(.caption2)}.font(.system(size:12,weight:.medium)).foregroundStyle(accent).padding(.horizontal,11).padding(.vertical,7).background(accent.opacity(0.15),in:Capsule())}.menuStyle(.borderlessButton).fixedSize()}
-   ScrollView(.horizontal,showsIndicators:false){HStack(spacing:7){ForEach(library.prefix(6)){sound in Button{model.replace(with:sound)}label:{Image(systemName:sound.icon).font(.system(size:14)).frame(width:35,height:35).background(model.levels[sound.id] != nil ? accent.opacity(0.24):.white.opacity(0.07),in:RoundedRectangle(cornerRadius:11))}.buttonStyle(.plain).help(sound.name)}}}
-   HStack{Menu{Button("Off"){model.remaining=0;model.sync()};ForEach([5,15,25,30,60],id:\.self){minutes in Button("\(minutes) minutes"){model.remaining=minutes*60;model.sync()}}}label:{Label(model.remaining > 0 ? String(format:"%02d:%02d",model.remaining/60,model.remaining%60):"Timer",systemImage:"timer")}.menuStyle(.borderlessButton).font(.system(size:11)).foregroundStyle(.secondary);Spacer();Button("Clear"){model.levels=[:];model.playing=false;model.sync()}.buttonStyle(.plain).font(.system(size:11)).foregroundStyle(.secondary).disabled(model.levels.isEmpty)}
+   HStack{Text("Switch sound").font(.system(size:12,weight:.medium));Spacer();Menu{ForEach(library){sound in Button{model.replaceWith(sound)}label:{Label(sound.name,systemImage:sound.icon)}}}label:{HStack(spacing:5){Text("Choose");Image(systemName:"chevron.up.chevron.down").font(.caption2)}.font(.system(size:12,weight:.medium)).foregroundStyle(accent).padding(.horizontal,11).padding(.vertical,7).background(accent.opacity(0.15),in:Capsule())}.menuStyle(.borderlessButton).fixedSize()}
+   ScrollView(.horizontal,showsIndicators:false){HStack(spacing:7){ForEach(library.prefix(6)){sound in Button{model.replaceWith(sound)}label:{Image(systemName:sound.icon).font(.system(size:14)).frame(width:35,height:35).background(model.levels[sound.id] != nil ? accent.opacity(0.24):.white.opacity(0.07),in:RoundedRectangle(cornerRadius:11))}.buttonStyle(.plain).help(sound.name)}}}
+   HStack{Menu{Button("Off"){model.remainingSeconds=0;model.synchronizeAudio()};ForEach([5,15,25,30,60],id:\.self){minutes in Button("\(minutes) minutes"){model.remainingSeconds=minutes*60;model.synchronizeAudio()}}}label:{Label(model.remainingSeconds > 0 ? String(format:"%02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"Timer",systemImage:"timer")}.menuStyle(.borderlessButton).font(.system(size:11)).foregroundStyle(.secondary);Spacer();Button("Clear"){model.levels=[:];model.isPlaying=false;model.synchronizeAudio()}.buttonStyle(.plain).font(.system(size:11)).foregroundStyle(.secondary).disabled(model.levels.isEmpty)}
   }.padding(18).frame(width:325).background(.ultraThinMaterial).preferredColorScheme(.dark).tint(accent)
- }
-}
-@main struct BrisaApp:App {
- @StateObject private var model=Model()
- var body:some Scene {
-  WindowGroup {ContentView(model:model)}.windowStyle(.hiddenTitleBar).defaultSize(width:1080,height:770)
-  MenuBarExtra("Brisa",systemImage:"wind") {MenuBarPlayerView(model:model)}.menuBarExtraStyle(.window)
  }
 }
