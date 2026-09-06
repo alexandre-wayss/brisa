@@ -19,7 +19,13 @@ final class AudioBank {
  var buffers: [String: AVAudioPCMBuffer] = [:]
  func buffer(_ id: String) throws -> AVAudioPCMBuffer {
   if let b = buffers[id] { return b }
-  if id == "keyboard" {let b=try loadRecording(recordingURL("keyboard-ambient.wav"));buffers[id]=b;return b}
+  let recordings = [
+   "keyboard": "keyboard-ambient.wav",
+   "realFireplace": "real/real-fireplace.wav",
+   "beachWaves": "real/real-beach-waves.wav",
+   "coffeeShop": "real/real-coffee-shop.wav"
+  ]
+  if let path = recordings[id] {let b=try loadRecording(recordingURL(path));buffers[id]=b;return b}
   let rate = 24000.0, count = 24000 * 16
   let format = AVAudioFormat(standardFormatWithSampleRate:rate,channels:1)!
   let b = AVAudioPCMBuffer(pcmFormat:format,frameCapacity:AVAudioFrameCount(count))!

@@ -17,9 +17,12 @@ let library: [Sound] = [
  .init(id:"waterfall",name:"Waterfall",icon:"drop.fill",category:"Water",detail:"A continuous flow"),
  .init(id:"wind",name:"Wind in Leaves",icon:"wind",category:"Nature",detail:"A passing breeze"),
  .init(id:"fire",name:"Fireplace",icon:"flame",category:"Nature",detail:"Warmth and quiet crackles"),
+ .init(id:"realFireplace",name:"Crackling Fireplace",icon:"flame.fill",category:"Nature",detail:"Real field recording · CC0"),
  .init(id:"night",name:"Night Field",icon:"moon.stars",category:"Nature",detail:"Crickets in the distance"),
  .init(id:"birds",name:"Sunrise",icon:"bird",category:"Nature",detail:"Delicate birdsong"),
+ .init(id:"beachWaves",name:"Beach Waves",icon:"beach.umbrella",category:"Nature",detail:"Real field recording · CC0"),
  .init(id:"fan",name:"Fan",icon:"fan",category:"Spaces",detail:"Steady comfort"),
+ .init(id:"coffeeShop",name:"Coffee Shop",icon:"cup.and.saucer.fill",category:"Spaces",detail:"Real field recording · CC0"),
  .init(id:"cabin",name:"Airplane Cabin",icon:"airplane",category:"Spaces",detail:"A calm journey"),
  .init(id:"train",name:"Train",icon:"tram",category:"Spaces",detail:"Rhythm on the rails"),
  .init(id:"keyboard",name:"Keyboard",icon:"keyboard",category:"Spaces",detail:"Small rhythmic taps")

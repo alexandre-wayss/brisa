@@ -26,3 +26,11 @@ Todos os arquivos abaixo foram publicados sob CC0 1.0: https://creativecommons.o
 - Áudio público HQ: https://cdn.freesound.org/previews/223/223445_1482559-hq.mp3
 
 Processamento: conversão para PCM mono 24 kHz, recorte, remoção de silêncio inicial, ajuste de ganho e suavização curta das bordas. Sem síntese ou alteração de altura musical. As amostras Freesound vieram das versões públicas comprimidas HQ, não dos WAV originais. Teclado mecânico e mouse mantêm os limites de variedade da gravação original.
+
+## Novas ambiências reais — loops de 55 segundos
+
+- **Crackling Fireplace** — Autor: nielstii. Freesound #346321, “Crackling fireplace”. CC0 1.0. Fonte: https://freesound.org/people/nielstii/sounds/346321/
+- **Coffee Shop** — Autor: waweee. Freesound #370973, “coffee shop ambience”. CC0 1.0. Fonte: https://freesound.org/people/waweee/sounds/370973/
+- **Beach Waves** — Autor: Yoyodaman234. Freesound #331219, “ocean waves at the beach 1”. CC0 1.0. Fonte: https://freesound.org/people/Yoyodaman234/sounds/331219/
+
+Essas gravações são convertidas para PCM mono de 24 kHz e recebem fades curtos nas bordas para reduzir cliques ao repetir. Nenhuma parte delas é sintetizada.
