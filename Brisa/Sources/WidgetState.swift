@@ -2,7 +2,13 @@ import Foundation
 
 enum WidgetState {
     static let suiteName = "group.local.brisa.ambient"
-    private static var defaults: UserDefaults { UserDefaults(suiteName: suiteName) ?? .standard }
+    private static var defaults: UserDefaults {
+        guard FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName) != nil,
+              let sharedDefaults = UserDefaults(suiteName: suiteName) else {
+            return .standard
+        }
+        return sharedDefaults
+    }
 
     static func publish(isPlaying: Bool, title: String, soundCount: Int, volume: Double) {
         defaults.set(isPlaying, forKey: "widget.isPlaying")

@@ -4,6 +4,14 @@ import WidgetKit
 
 private let widgetSuite = "group.local.brisa.ambient"
 
+private var widgetDefaults: UserDefaults {
+    guard FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetSuite) != nil,
+          let sharedDefaults = UserDefaults(suiteName: widgetSuite) else {
+        return .standard
+    }
+    return sharedDefaults
+}
+
 struct BrisaEntry: TimelineEntry {
     let date: Date
     let isPlaying: Bool
@@ -21,7 +29,7 @@ struct BrisaProvider: TimelineProvider {
 
     private var preview: BrisaEntry { BrisaEntry(date: .now, isPlaying: true, title: "Light Rain + Wind", soundCount: 2, volume: 0.4) }
     private var current: BrisaEntry {
-        let defaults = UserDefaults(suiteName: widgetSuite) ?? .standard
+        let defaults = widgetDefaults
         return BrisaEntry(date: .now,
                           isPlaying: defaults.bool(forKey: "widget.isPlaying"),
                           title: defaults.string(forKey: "widget.title") ?? "Ready to play",
@@ -35,7 +43,7 @@ struct ToggleBrisaPlaybackIntent: AppIntent {
     static var openAppWhenRun = true
 
     func perform() async throws -> some IntentResult {
-        let defaults = UserDefaults(suiteName: widgetSuite) ?? .standard
+        let defaults = widgetDefaults
         defaults.set("togglePlayback", forKey: "widget.pendingAction")
         return .result()
     }
