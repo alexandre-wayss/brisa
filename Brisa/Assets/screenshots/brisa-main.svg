@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Brisa ambient sound app</title>
+  <desc id="desc">Dark glass interface showing sound filters, ambient sound cards and playback controls.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1515"/><stop offset=".5" stop-color="#13231f"/><stop offset="1" stop-color="#0b1112"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff" stop-opacity=".13"/><stop offset="1" stop-color="#ffffff" stop-opacity=".035"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="72"/></filter>
+  </defs>
+  <rect width="1440" height="900" rx="34" fill="url(#bg)"/>
+  <circle cx="1170" cy="90" r="250" fill="#b6d69d" opacity=".18" filter="url(#blur)"/>
+  <circle cx="130" cy="770" r="220" fill="#64c7c2" opacity=".09" filter="url(#blur)"/>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" fill="#f5f8f5">
+    <text x="62" y="88" font-size="31" font-weight="700" fill="#b6d69d">≋</text><text x="101" y="88" font-size="28" font-weight="700">brisa</text>
+    <g transform="translate(940 48)"><rect width="202" height="48" rx="24" fill="url(#glass)" stroke="#ffffff" stroke-opacity=".12"/><text x="24" y="30" font-size="15" font-weight="600">⌨  Interaction sounds</text></g>
+    <g transform="translate(1160 48)"><rect width="218" height="48" rx="24" fill="url(#glass)" stroke="#ffffff" stroke-opacity=".12"/><text x="24" y="30" font-size="15" fill="#abb5b2">⌕  Search</text></g>
+    <g transform="translate(62 128)" font-size="15" font-weight="600">
+      <rect width="126" height="46" rx="23" fill="#b6d69d"/><text x="22" y="29" fill="#162017">▦  All sounds</text>
+      <g transform="translate(140)"><rect width="110" height="46" rx="23" fill="url(#glass)"/><text x="19" y="29">♡  Favorites</text></g>
+      <g transform="translate(264)"><rect width="88" height="46" rx="23" fill="url(#glass)"/><text x="20" y="29">♬  Noise</text></g>
+      <g transform="translate(366)"><rect width="90" height="46" rx="23" fill="url(#glass)"/><text x="20" y="29">♢  Water</text></g>
+      <g transform="translate(470)"><rect width="100" height="46" rx="23" fill="url(#glass)"/><text x="18" y="29">⌁  Nature</text></g>
+      <g transform="translate(584)"><rect width="99" height="46" rx="23" fill="url(#glass)"/><text x="18" y="29">▥  Spaces</text></g>
+      <g transform="translate(697)"><rect width="108" height="46" rx="23" fill="url(#glass)"/><text x="18" y="29">☷  My mixes</text></g>
+    </g>
+    <text x="62" y="238" font-size="37" font-weight="700">All sounds</text><text x="62" y="270" font-size="16" fill="#aab5b0">Select, combine, and tune at your own pace.</text>
+    <g transform="translate(62 316)">
+      <g id="card"><rect width="286" height="184" rx="24" fill="url(#glass)" stroke="#ffffff" stroke-opacity=".18"/><text x="24" y="51" font-size="35" fill="#b8c0bd">♬</text><text x="252" y="49" font-size="24" fill="#b8c0bd">♡</text><text x="24" y="164" font-size="13" fill="#7c8884">Add to mix</text><text x="250" y="164" font-size="18" fill="#aab5b0">⊕</text></g>
+      <g><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">White Noise</text><text x="24" y="137" font-size="14" fill="#aab5b0">Even and immersive</text></g>
+      <g transform="translate(304)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Pink Noise</text><text x="24" y="137" font-size="14" fill="#aab5b0">Soft and balanced</text></g>
+      <g transform="translate(608)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Brown Noise</text><text x="24" y="137" font-size="14" fill="#aab5b0">Low and deep</text></g>
+      <g transform="translate(912)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Green Noise</text><text x="24" y="137" font-size="14" fill="#aab5b0">Gentle mid frequencies</text></g>
+      <g transform="translate(0 202)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Grey Noise</text><text x="24" y="137" font-size="14" fill="#aab5b0">Wide filtered texture</text></g>
+      <g transform="translate(304 202)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Light Rain</text><text x="24" y="137" font-size="14" fill="#aab5b0">A quiet afternoon</text></g>
+      <g transform="translate(608 202)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Heavy Rain</text><text x="24" y="137" font-size="14" fill="#aab5b0">Rain in every direction</text></g>
+      <g transform="translate(912 202)"><use href="#card"/><text x="24" y="108" font-size="20" font-weight="700">Rain on a Tent</text><text x="24" y="137" font-size="14" fill="#aab5b0">A small shelter</text></g>
+    </g>
+    <g transform="translate(52 745)"><rect width="1336" height="112" rx="31" fill="#172522" fill-opacity=".9" stroke="#ffffff" stroke-opacity=".18"/><circle cx="54" cy="56" r="34" fill="#b6d69d"/><text x="42" y="65" font-size="27" fill="#142018">▶</text><circle cx="110" cy="42" r="4" fill="#b6d69d"/><text x="124" y="48" font-size="16" font-weight="700">Ready to play</text><text x="124" y="74" font-size="13" fill="#aab5b0">2 sounds in your mix</text><text x="882" y="60" font-size="18" fill="#aab5b0">⌁</text><rect x="912" y="52" width="140" height="6" rx="3" fill="#50605b"/><rect x="912" y="52" width="46" height="6" rx="3" fill="#b6d69d"/><circle cx="958" cy="55" r="11" fill="#f4f7f4"/><text x="1072" y="61" font-size="14" fill="#aab5b0">65%</text><text x="1170" y="61" font-size="14" fill="#aab5b0">◴  No timer</text><text x="1280" y="61" font-size="14" fill="#aab5b0">Clear</text><circle cx="1310" cy="56" r="24" fill="#b6d69d" opacity=".22"/><text x="1302" y="65" font-size="22" fill="#b6d69d">+</text></g>
+  </g>
+</svg>
