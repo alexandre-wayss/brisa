@@ -9,8 +9,10 @@ struct ContentView: View {
  @State private var showInputSounds=false
  @State private var showSettings=false
  @State private var showWelcome=false
- let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","My mixes"]
- var filtered:[Sound] {library.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
+ @State private var showImport=false
+ @State private var relinkingSound: ImportedSound?
+ let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","Imported","My mixes"]
+ var filtered:[Sound] {model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
  var body: some View {
  ZStack {
   LinearGradient(colors:[Color(red:0.045,green:0.065,blue:0.07),Color(red:0.08,green:0.115,blue:0.105),Color(red:0.045,green:0.055,blue:0.06)],startPoint:.topLeading,endPoint:.bottomTrailing).ignoresSafeArea()
@@ -21,6 +23,7 @@ struct ContentView: View {
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
     Button { showSettings=true } label: { Image(systemName:"gearshape").font(.system(size:16)).padding(9) }.buttonStyle(.plain).help("Settings")
+    Button { showImport=true } label: { Label("Import audio",systemImage:"square.and.arrow.down").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule()) }.buttonStyle(.plain)
     Button{showInputSounds=true}label:{Label("Interaction sounds",systemImage:"keyboard").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())}.buttonStyle(.plain)
     HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())
    }.padding(.horizontal,34).padding(.top,25).padding(.bottom,18)
@@ -68,10 +71,16 @@ struct ContentView: View {
  }.frame(minWidth:920,minHeight:640).preferredColorScheme(.dark).tint(accent)
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
+ .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
+ .fileImporter(isPresented:Binding(get:{relinkingSound != nil},set:{if !$0 {relinkingSound=nil}}),allowedContentTypes:[.wav,.aiff,.mp3],allowsMultipleSelection:false){result in
+  guard let sound=relinkingSound else{return}; defer{relinkingSound=nil}
+  do { guard let url=try result.get().first else{return}; let accessed=url.startAccessingSecurityScopedResource(); defer{if accessed{url.stopAccessingSecurityScopedResource()}}; try model.relink(sound,to:url) }
+  catch {model.error=error.localizedDescription}
+ }
  .sheet(isPresented:$showInputSounds){InputSoundsView(input:model.inputSounds)}
  .sheet(isPresented:$showWelcome){WelcomeView{UserDefaults.standard.set(true,forKey:"didSeeWelcome");showWelcome=false}}
  .sheet(item:$editingMix){mix in
-  MixEditor(mix:mix){updated in
+  MixEditor(mix:mix,sounds:model.availableLibrary){updated in
    if let index=model.mixes.firstIndex(where:{$0.id==updated.id}) {
     let wasCurrent=model.levels == model.mixes[index].levels
     model.mixes[index]=updated
@@ -83,13 +92,13 @@ struct ContentView: View {
  .alert("Could not start audio",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("OK"){model.error=nil}}message:{Text(model.error ?? "")}
  .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true } }
  }
- func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
+ func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
  func empty(_ title:String,_ detail:String)->some View {VStack(spacing:12){Image(systemName:"wind").font(.largeTitle).foregroundStyle(accent);Text(title).font(.title3);Text(detail).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(.vertical,70)}
  func preset(_ name:String,_ symbol:String,_ levels:[String:Double])->some View {Button{model.applyMix(levels)}label:{HStack{Image(systemName:symbol).foregroundStyle(accent);Text(name).font(.system(size:12,weight:.medium));Spacer();Image(systemName:"arrow.up.right").font(.caption).foregroundStyle(.secondary)}.padding(18).frame(maxWidth:.infinity).background(accent.opacity(0.07),in:RoundedRectangle(cornerRadius:13))}.buttonStyle(.plain)}
  func card(_ sound:Sound)->some View {
  let active=model.levels[sound.id] != nil
  return VStack(alignment:.leading,spacing:15){
-  HStack{Button{model.toggle(sound.id)}label:{Image(systemName:sound.icon).font(.system(size:27,weight:.light)).foregroundStyle(active ? accent:.secondary).frame(width:44,height:38)}.buttonStyle(.plain).accessibilityLabel("Toggle \(sound.name)");Spacer();Button{model.setFavorite(sound.id)}label:{Image(systemName:model.favorites.contains(sound.id) ? "heart.fill":"heart").foregroundStyle(model.favorites.contains(sound.id) ? accent:Color.secondary)}.buttonStyle(.plain).accessibilityLabel("Favorite \(sound.name)")}
+  HStack{Button{model.toggle(sound.id)}label:{Image(systemName:sound.icon).font(.system(size:27,weight:.light)).foregroundStyle(active ? accent:.secondary).frame(width:44,height:38)}.buttonStyle(.plain).accessibilityLabel("Toggle \(sound.name)");Spacer();Button{model.setFavorite(sound.id)}label:{Image(systemName:model.favorites.contains(sound.id) ? "heart.fill":"heart").foregroundStyle(model.favorites.contains(sound.id) ? accent:Color.secondary)}.buttonStyle(.plain).accessibilityLabel("Favorite \(sound.name)");if let imported=model.importedSounds.first(where:{$0.id==sound.id}) {Menu { if let url=URL(string:imported.originalURL) { Button("Open source") { NSWorkspace.shared.open(url) } }; Button("Relink audio…") { relinkingSound=imported }; Button("Remove imported sound",role:.destructive){model.removeImportedSound(imported)} } label:{Image(systemName:"ellipsis.circle")}.menuStyle(.borderlessButton)}}
   Button{model.toggle(sound.id)}label:{VStack(alignment:.leading,spacing:5){Text(sound.name).font(.system(size:15,weight:.medium));Text(sound.detail).font(.system(size:11)).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain)
   HStack{if active {Slider(value:Binding(get:{model.levels[sound.id] ?? 0.5},set:{model.levels[sound.id]=$0;model.synchronizeAudio()}),in:0...1).accessibilityLabel("Volume for \(sound.name)");Text("\(Int((model.levels[sound.id] ?? 0)*100))").font(.system(size:10,design:.monospaced)).foregroundStyle(accent).frame(width:25)}else{Text("Add to mix").font(.system(size:10)).foregroundStyle(.tertiary);Spacer();Button{model.toggle(sound.id)}label:{Image(systemName:"plus.circle").foregroundStyle(.secondary)}.buttonStyle(.plain)}}.frame(height:20)
  }.padding(18).background(.ultraThinMaterial,in:RoundedRectangle(cornerRadius:20)).overlay(RoundedRectangle(cornerRadius:20).fill(active ? accent.opacity(0.12):.white.opacity(0.025)).allowsHitTesting(false)).overlay(RoundedRectangle(cornerRadius:20).stroke(active ? accent.opacity(0.55):.white.opacity(0.13),lineWidth:1).allowsHitTesting(false)).shadow(color:.black.opacity(0.14),radius:14,y:7)

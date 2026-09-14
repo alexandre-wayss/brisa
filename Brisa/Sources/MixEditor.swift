@@ -2,9 +2,10 @@ import SwiftUI
 struct MixEditor: View {
  @Environment(\.dismiss) private var dismiss
  @State private var draft: Mix
+ let sounds: [Sound]
  let onSave: (Mix)->Void
- init(mix:Mix,onSave:@escaping (Mix)->Void) {
-  _draft=State(initialValue:mix);self.onSave=onSave
+ init(mix:Mix,sounds:[Sound],onSave:@escaping (Mix)->Void) {
+  _draft=State(initialValue:mix);self.sounds=sounds;self.onSave=onSave
  }
  var body:some View {
   VStack(alignment:.leading,spacing:18){
@@ -12,7 +13,7 @@ struct MixEditor: View {
    TextField("Mix name",text:$draft.name).textFieldStyle(.roundedBorder)
    Text("Choose sounds and adjust their volumes.").font(.callout).foregroundStyle(.secondary)
    ScrollView {
-    VStack(spacing:12){ForEach(library){sound in
+    VStack(spacing:12){ForEach(sounds){sound in
      HStack(spacing:12){
       Toggle(isOn:Binding(get:{draft.levels[sound.id] != nil},set:{enabled in
        if enabled {draft.levels[sound.id]=0.05}else{draft.levels.removeValue(forKey:sound.id)}

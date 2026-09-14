@@ -37,8 +37,15 @@ final class AudioBank {
  let engine = AVAudioEngine()
  var players: [String: AVAudioPlayerNode] = [:]
  var buffers: [String: AVAudioPCMBuffer] = [:]
+ var importedURL: ((String) -> URL?)?
  func buffer(_ id: String) throws -> AVAudioPCMBuffer {
   if let b = buffers[id] { return b }
+  if id.hasPrefix("imported-") {
+   guard let url = importedURL?(id), FileManager.default.fileExists(atPath: url.path) else {
+    throw NSError(domain: "Brisa", code: 3, userInfo: [NSLocalizedDescriptionKey: "Imported audio is unavailable. Relink or remove it from the library."])
+   }
+   let b = seamlessLoop(try loadRecording(url)); buffers[id] = b; return b
+  }
   let recordings = [
    "keyboard": "keyboard-ambient.wav",
    "realFireplace": "real/real-fireplace.wav",
@@ -86,6 +93,7 @@ final class AudioBank {
   let loop = seamlessLoop(b)
   buffers[id]=loop; return loop
  }
+ func discardBuffer(for id: String) { buffers.removeValue(forKey: id) }
  func update(_ levels: [String:Double], playing: Bool, master: Double) throws {
   guard playing else {
    for node in players.values { node.pause() }

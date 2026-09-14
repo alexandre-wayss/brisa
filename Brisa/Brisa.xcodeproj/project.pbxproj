@@ -12,6 +12,8 @@
 		369937A5DA55F518340F61DF /* MixEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5920DD25C75ABF9D3606CE60 /* MixEditor.swift */; };
 		391E94FBC315BFB6B511FC5E /* AppEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A84989BD1BA033E80E971671 /* AppEntry.swift */; };
 		40214DB63F42605020A0CC91 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A934D2D26B6C834DF712558 /* WelcomeView.swift */; };
+		5171EBBDF93816947C59D9D9 /* ImportSoundsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D39E7FD40216F484E4D9166C /* ImportSoundsView.swift */; };
+		663A14F8C784EC07AB194642 /* ImportedSounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = D426557338CA7710B792A969 /* ImportedSounds.swift */; };
 		72025A313DD91DE849E82668 /* Brisa.icns in Resources */ = {isa = PBXBuildFile; fileRef = 20D18B2568C9B99D6EEB821A /* Brisa.icns */; };
 		7DF38E242415B73ADFBC9EF2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05E9C5BA1029142EF4CEA50 /* AppModel.swift */; };
 		87F0A33F50B2DA154B9B6062 /* InputSounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = D018C800F9C0E67672881024 /* InputSounds.swift */; };
@@ -35,6 +37,8 @@
 		C833F95CD8DC84FEED2D47F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D018C800F9C0E67672881024 /* InputSounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSounds.swift; sourceTree = "<group>"; };
 		E05E9C5BA1029142EF4CEA50 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		D39E7FD40216F484E4D9166C /* ImportSoundsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSoundsView.swift; sourceTree = "<group>"; };
+		D426557338CA7710B792A969 /* ImportedSounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedSounds.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -64,6 +68,8 @@
 				7C8760EBC2C89B3ABB1FBD2D /* AudioBank.swift */,
 				C833F95CD8DC84FEED2D47F7 /* ContentView.swift */,
 				D018C800F9C0E67672881024 /* InputSounds.swift */,
+				D426557338CA7710B792A969 /* ImportedSounds.swift */,
+				D39E7FD40216F484E4D9166C /* ImportSoundsView.swift */,
 				749B533C75C9AC9F23CFB6CF /* InputSoundsView.swift */,
 				4062B3DB9846BC4D246A36CC /* MenuBarPlayerView.swift */,
 				5920DD25C75ABF9D3606CE60 /* MixEditor.swift */,
@@ -179,6 +185,8 @@
 				BA20A0C4DC4B9C4542075BF5 /* AudioBank.swift in Sources */,
 				C4F649AA8A11C5506C952C13 /* ContentView.swift in Sources */,
 				87F0A33F50B2DA154B9B6062 /* InputSounds.swift in Sources */,
+				5171EBBDF93816947C59D9D9 /* ImportSoundsView.swift in Sources */,
+				663A14F8C784EC07AB194642 /* ImportedSounds.swift in Sources */,
 				EB048C3B6F73CC64ABD9C808 /* InputSoundsView.swift in Sources */,
 				13F68AD52B8A544128976A02 /* MenuBarPlayerView.swift in Sources */,
 				369937A5DA55F518340F61DF /* MixEditor.swift in Sources */,

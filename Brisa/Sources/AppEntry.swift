@@ -209,9 +209,9 @@ private struct LiveBrisaPlayer: View {
                     }.buttonStyle(.plain).accessibilityLabel("Close mini player")
                 }.foregroundStyle(mint)
                 Menu {
-                    ForEach(["Noise", "Water", "Nature", "Spaces"], id: \.self) { category in
+                    ForEach(["Noise", "Water", "Nature", "Spaces", "Imported"], id: \.self) { category in
                         Menu(category) {
-                            ForEach(library.filter { $0.category == category }) { sound in
+                            ForEach(model.availableLibrary.filter { $0.category == category }) { sound in
                                 Button { model.replaceWith(sound) } label: { Label(sound.name, systemImage: sound.icon) }
                             }
                         }
