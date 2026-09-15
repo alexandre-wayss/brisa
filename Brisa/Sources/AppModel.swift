@@ -1,5 +1,28 @@
 import Foundation
 import Combine
+import UserNotifications
+
+enum PomodoroPhase: String, CaseIterable, Codable {
+    case work
+    case shortBreak
+    case longBreak
+
+    var title: String {
+        switch self {
+        case .work: return "Focus"
+        case .shortBreak: return "Short break"
+        case .longBreak: return "Long break"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .work: return "brain.head.profile"
+        case .shortBreak: return "cup.and.saucer.fill"
+        case .longBreak: return "leaf.fill"
+        }
+    }
+}
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -16,10 +39,23 @@ final class AppModel: ObservableObject {
     }
     @Published var remainingSeconds = 0
     @Published var error: String?
+    @Published var pomodoroPhase: PomodoroPhase = .work { didSet { persistPomodoro() } }
+    @Published var pomodoroRemainingSeconds = 25 * 60 { didSet { persistPomodoro() } }
+    @Published var isPomodoroRunning = false { didSet { persistPomodoro() } }
+    @Published var completedPomodoros = 0 { didSet { persistPomodoro() } }
+    @Published var workMinutes = 25 { didSet { let valid = min(max(workMinutes, 1), 180); if valid != workMinutes { workMinutes = valid } else { persistPomodoro() } } }
+    @Published var shortBreakMinutes = 5 { didSet { let valid = min(max(shortBreakMinutes, 1), 60); if valid != shortBreakMinutes { shortBreakMinutes = valid } else { persistPomodoro() } } }
+    @Published var longBreakMinutes = 15 { didSet { let valid = min(max(longBreakMinutes, 1), 120); if valid != longBreakMinutes { longBreakMinutes = valid } else { persistPomodoro() } } }
+    @Published var longBreakInterval = 4 { didSet { let valid = min(max(longBreakInterval, 1), 12); if valid != longBreakInterval { longBreakInterval = valid } else { persistPomodoro() } } }
+    @Published var changesSoundscapeWithPomodoro = false { didSet { persistPomodoro() } }
+    @Published var pomodoroSoundIDs: [String: String] = [:] { didSet { persistPomodoro() } }
+    @Published var pomodoroSoundVolume = 0.05 { didSet { let valid = min(max(pomodoroSoundVolume, 0), 1); if valid != pomodoroSoundVolume { pomodoroSoundVolume = valid } else { persistPomodoro() } } }
 
     private var volumeBeforeMute = 0.65
     private let audio = AudioBank()
     private var timer: Timer?
+    private var pomodoroEndDate: Date?
+    private var isRestoringPomodoro = false
 
     init() {
         levels = UserDefaults.standard.dictionary(forKey: "levels") as? [String: Double] ?? [:]
@@ -34,6 +70,7 @@ final class AppModel: ObservableObject {
         }
         audio.importedURL = { [weak self] id in self?.importedSounds.first(where: { $0.id == id }).flatMap { $0.storedFile }.map(URL.init(fileURLWithPath:)) }
         volumeBeforeMute = masterVolume > 0 ? masterVolume : 0.65
+        restorePomodoro()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let model = self else { return }
             Task { @MainActor [weak model] in model?.tickTimer() }
@@ -143,6 +180,65 @@ final class AppModel: ObservableObject {
         synchronizeAudio()
     }
 
+    var pomodoroDurationSeconds: Int {
+        switch pomodoroPhase {
+        case .work: return workMinutes * 60
+        case .shortBreak: return shortBreakMinutes * 60
+        case .longBreak: return longBreakMinutes * 60
+        }
+    }
+
+    var pomodoroTimeText: String {
+        String(format: "%02d:%02d", max(0, pomodoroRemainingSeconds) / 60, max(0, pomodoroRemainingSeconds) % 60)
+    }
+
+    func startPomodoro() {
+        if pomodoroRemainingSeconds <= 0 { pomodoroRemainingSeconds = pomodoroDurationSeconds }
+        pomodoroEndDate = Date().addingTimeInterval(TimeInterval(pomodoroRemainingSeconds))
+        isPomodoroRunning = true
+        persistPomodoro()
+    }
+
+    func pausePomodoro() {
+        updatePomodoroRemaining()
+        pomodoroEndDate = nil
+        isPomodoroRunning = false
+        persistPomodoro()
+    }
+
+    func resetPomodoro() {
+        pomodoroEndDate = nil
+        isPomodoroRunning = false
+        pomodoroPhase = .work
+        pomodoroRemainingSeconds = workMinutes * 60
+        persistPomodoro()
+    }
+
+    func skipPomodoro() {
+        advancePomodoro(completed: false)
+    }
+
+    func applyPomodoroSoundscape() {
+        guard changesSoundscapeWithPomodoro else { return }
+        if let soundID = pomodoroSoundIDs[pomodoroPhase.rawValue], !soundID.isEmpty {
+            applyMix([soundID: pomodoroSoundVolume])
+            return
+        }
+        switch pomodoroPhase {
+        case .work: applyMix(["brown": pomodoroSoundVolume, "rain": pomodoroSoundVolume])
+        case .shortBreak: applyMix(["ocean": pomodoroSoundVolume, "wind": pomodoroSoundVolume])
+        case .longBreak: applyMix(["night": pomodoroSoundVolume, "fireplace": pomodoroSoundVolume])
+        }
+    }
+
+    func pomodoroSoundID(for phase: PomodoroPhase) -> String {
+        pomodoroSoundIDs[phase.rawValue] ?? ""
+    }
+
+    func setPomodoroSoundID(_ id: String, for phase: PomodoroPhase) {
+        pomodoroSoundIDs[phase.rawValue] = id
+    }
+
     func synchronizeAudio() {
         do { try audio.update(levels, playing: isPlaying, master: masterVolume) }
         catch { self.error = error.localizedDescription; isPlaying = false }
@@ -155,9 +251,89 @@ final class AppModel: ObservableObject {
     }
 
     private func tickTimer() {
-        guard remainingSeconds > 0 else { return }
-        remainingSeconds -= 1
-        if remainingSeconds == 0 { isPlaying = false; synchronizeAudio() }
-        else if remainingSeconds <= 15 { audio.engine.mainMixerNode.outputVolume = Float(masterVolume) * Float(remainingSeconds) / 15 }
+        if remainingSeconds > 0 {
+            remainingSeconds -= 1
+            if remainingSeconds == 0 { isPlaying = false; synchronizeAudio() }
+            else if remainingSeconds <= 15 { audio.engine.mainMixerNode.outputVolume = Float(masterVolume) * Float(remainingSeconds) / 15 }
+        }
+
+        updatePomodoroRemaining()
+    }
+
+    private func updatePomodoroRemaining() {
+        guard isPomodoroRunning, let pomodoroEndDate else { return }
+        let seconds = max(0, Int(pomodoroEndDate.timeIntervalSinceNow.rounded(.up)))
+        if seconds != pomodoroRemainingSeconds { pomodoroRemainingSeconds = seconds }
+        if seconds == 0 { advancePomodoro(completed: true) }
+    }
+
+    private func advancePomodoro(completed: Bool) {
+        let finished = pomodoroPhase
+        if completed && finished == .work { completedPomodoros += 1 }
+        if finished == .work {
+            pomodoroPhase = completedPomodoros > 0 && completedPomodoros % longBreakInterval == 0 ? .longBreak : .shortBreak
+        } else {
+            pomodoroPhase = .work
+        }
+        pomodoroRemainingSeconds = pomodoroDurationSeconds
+        pomodoroEndDate = nil
+        isPomodoroRunning = false
+        applyPomodoroSoundscape()
+        notifyPomodoroTransition(from: finished, to: pomodoroPhase)
+        persistPomodoro()
+    }
+
+    private func restorePomodoro() {
+        isRestoringPomodoro = true
+        defer { isRestoringPomodoro = false; persistPomodoro() }
+        let defaults = UserDefaults.standard
+        workMinutes = defaults.object(forKey: "pomodoro.workMinutes") as? Int ?? 25
+        shortBreakMinutes = defaults.object(forKey: "pomodoro.shortBreakMinutes") as? Int ?? 5
+        longBreakMinutes = defaults.object(forKey: "pomodoro.longBreakMinutes") as? Int ?? 15
+        longBreakInterval = defaults.object(forKey: "pomodoro.longBreakInterval") as? Int ?? 4
+        changesSoundscapeWithPomodoro = defaults.bool(forKey: "pomodoro.changesSoundscape")
+        pomodoroSoundIDs = defaults.dictionary(forKey: "pomodoro.soundIDs") as? [String: String] ?? [:]
+        pomodoroSoundVolume = defaults.object(forKey: "pomodoro.soundVolume") as? Double ?? 0.05
+        completedPomodoros = defaults.integer(forKey: "pomodoro.completed")
+        pomodoroPhase = PomodoroPhase(rawValue: defaults.string(forKey: "pomodoro.phase") ?? "") ?? .work
+        pomodoroRemainingSeconds = defaults.object(forKey: "pomodoro.remaining") as? Int ?? pomodoroDurationSeconds
+        if let end = defaults.object(forKey: "pomodoro.end") as? Double {
+            let endDate = Date(timeIntervalSince1970: end)
+            if endDate > Date() {
+                pomodoroEndDate = endDate
+                isPomodoroRunning = true
+                updatePomodoroRemaining()
+            } else if defaults.bool(forKey: "pomodoro.running") {
+                pomodoroEndDate = Date()
+                isPomodoroRunning = true
+                advancePomodoro(completed: true)
+            }
+        }
+    }
+
+    private func persistPomodoro() {
+        guard !isRestoringPomodoro else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(pomodoroPhase.rawValue, forKey: "pomodoro.phase")
+        defaults.set(pomodoroRemainingSeconds, forKey: "pomodoro.remaining")
+        defaults.set(isPomodoroRunning, forKey: "pomodoro.running")
+        defaults.set(completedPomodoros, forKey: "pomodoro.completed")
+        defaults.set(workMinutes, forKey: "pomodoro.workMinutes")
+        defaults.set(shortBreakMinutes, forKey: "pomodoro.shortBreakMinutes")
+        defaults.set(longBreakMinutes, forKey: "pomodoro.longBreakMinutes")
+        defaults.set(longBreakInterval, forKey: "pomodoro.longBreakInterval")
+        defaults.set(changesSoundscapeWithPomodoro, forKey: "pomodoro.changesSoundscape")
+        defaults.set(pomodoroSoundIDs, forKey: "pomodoro.soundIDs")
+        defaults.set(pomodoroSoundVolume, forKey: "pomodoro.soundVolume")
+        defaults.set(pomodoroEndDate?.timeIntervalSince1970, forKey: "pomodoro.end")
+    }
+
+    private func notifyPomodoroTransition(from finished: PomodoroPhase, to next: PomodoroPhase) {
+        let content = UNMutableNotificationContent()
+        content.title = finished == .work ? "Focus session complete" : "Break complete"
+        content.body = next == .work ? "Time to focus again." : "Take a (next.title.lowercased())."
+        content.sound = .default
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 }

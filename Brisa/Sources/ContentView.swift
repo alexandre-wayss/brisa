@@ -10,6 +10,7 @@ struct ContentView: View {
  @State private var showSettings=false
  @State private var showWelcome=false
  @State private var showImport=false
+ @State private var showPomodoro=false
  @State private var relinkingSound: ImportedSound?
  let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","Imported","My mixes"]
  var filtered:[Sound] {model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
@@ -22,6 +23,7 @@ struct ContentView: View {
    HStack(spacing:16){
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
+    Button { showPomodoro=true } label: { Label(model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro",systemImage:"timer").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(accent.opacity(model.isPomodoroRunning ? 0.22 : 0.10),in:Capsule()) }.buttonStyle(.plain).accessibilityLabel("Open Pomodoro timer")
     Button { showSettings=true } label: { Image(systemName:"gearshape").font(.system(size:16)).padding(9) }.buttonStyle(.plain).help("Settings")
     Button { showImport=true } label: { Label("Import audio",systemImage:"square.and.arrow.down").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule()) }.buttonStyle(.plain)
     Button{showInputSounds=true}label:{Label("Interaction sounds",systemImage:"keyboard").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())}.buttonStyle(.plain)
@@ -72,6 +74,7 @@ struct ContentView: View {
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
+ .sheet(isPresented:$showPomodoro){PomodoroTimerView(model:model)}
  .fileImporter(isPresented:Binding(get:{relinkingSound != nil},set:{if !$0 {relinkingSound=nil}}),allowedContentTypes:[.wav,.aiff,.mp3],allowsMultipleSelection:false){result in
   guard let sound=relinkingSound else{return}; defer{relinkingSound=nil}
   do { guard let url=try result.get().first else{return}; let accessed=url.startAccessingSecurityScopedResource(); defer{if accessed{url.stopAccessingSecurityScopedResource()}}; try model.relink(sound,to:url) }
@@ -108,7 +111,7 @@ struct ContentView: View {
   Button{model.togglePlayback()}label:{Image(systemName:model.isPlaying ? "pause.fill":"play.fill").font(.system(size:21,weight:.bold)).foregroundStyle(Color.black.opacity(0.78)).frame(width:56,height:56).background(accent,in:Circle()).shadow(color:accent.opacity(0.35),radius:12,y:5)}.buttonStyle(.plain).keyboardShortcut(.space,modifiers:[]).accessibilityLabel(model.isPlaying ? "Pause":"Play")
   VStack(alignment:.leading,spacing:6){HStack(spacing:7){Circle().fill(model.isPlaying ? accent:Color.secondary).frame(width:7,height:7);Text(model.isPlaying ? "Now playing" : "Ready to play").font(.system(size:14,weight:.semibold))};Text("\(model.levels.count) sounds in your mix").font(.system(size:11)).foregroundStyle(.secondary)}
   Spacer(minLength:8)
-  VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.masterVolume,in:0...1).frame(width:130).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume");Text("\(Int(model.masterVolume*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};Text(model.remainingSeconds>0 ? String(format:"Ends in %02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"No timer").font(.system(size:10)).foregroundStyle(.secondary)}
+  VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.masterVolume,in:0...1).frame(width:130).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume");Text("\(Int(model.masterVolume*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};Text(model.isPomodoroRunning ? "\(model.pomodoroPhase.title) · \(model.pomodoroTimeText)" : (model.remainingSeconds>0 ? String(format:"Ends in %02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"No timer")).font(.system(size:10)).foregroundStyle(.secondary)}
   Menu{Button("Off"){model.remainingSeconds=0;model.synchronizeAudio()};ForEach([5,15,25,30,60,90],id:\.self){m in Button("\(m) minutes"){model.remainingSeconds=m*60;model.synchronizeAudio()}}}label:{Image(systemName:"timer").font(.system(size:15,weight:.medium)).frame(width:38,height:38).background(.white.opacity(0.10),in:Circle())}.menuStyle(.borderlessButton).fixedSize()
   Button("Clear"){model.levels=[:];model.isPlaying=false;model.synchronizeAudio()}.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).disabled(model.levels.isEmpty)
   Button{save=true}label:{Image(systemName:"plus").font(.system(size:13,weight:.bold)).frame(width:38,height:38).background(accent.opacity(0.20),in:Circle())}.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel("Save mix").disabled(model.levels.isEmpty)

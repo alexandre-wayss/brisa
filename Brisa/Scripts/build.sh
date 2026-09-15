@@ -33,3 +33,4 @@ xattr -cr "${output_dir}"
 codesign --force --sign - --identifier local.brisa.ambient "${output_dir}"
 codesign --verify --deep --strict "${output_dir}"
 print "Build concluído: ${output_dir}"
+  -framework UserNotifications \
