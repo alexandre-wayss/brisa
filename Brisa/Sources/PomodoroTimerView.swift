@@ -5,6 +5,8 @@ struct PomodoroTimerView: View {
     @ObservedObject var model: AppModel
     @State private var confirmClear = false
     @State private var showSettings = false
+    @State private var editingTime = false
+    @State private var minutesInput = ""
 
     private var phaseColor: Color {
         switch model.pomodoroPhase {
@@ -57,8 +59,16 @@ struct PomodoroTimerView: View {
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.4), value: model.pomodoroProgress)
                 VStack(spacing: 6) {
-                    Text(model.pomodoroTimeText)
-                        .font(.system(size: 76, weight: .light, design: .rounded).monospacedDigit())
+                    Button {
+                        minutesInput = "\(model.pomodoroTotalSeconds / 60)"
+                        editingTime = true
+                    } label: {
+                        Text(model.pomodoroTimeText)
+                            .font(.system(size: 76, weight: .light, design: .rounded).monospacedDigit())
+                    }
+                    .buttonStyle(.plain).help("Click to set the time")
+                    .accessibilityLabel("Time remaining \(model.pomodoroTimeText). Click to change.")
+                    .popover(isPresented: $editingTime, arrowEdge: .bottom) { timeEditor }
                     Text(model.isPomodoroRunning ? "In progress" : "Ready")
                         .font(.caption.weight(.bold)).tracking(1.6).textCase(.uppercase).foregroundStyle(.secondary)
                     HStack(spacing: 7) {
@@ -83,10 +93,11 @@ struct PomodoroTimerView: View {
 
             HStack(spacing: 12) {
                 roundButton("arrow.counterclockwise", "Reset") { model.resetPomodoro() }
+                roundButton("minus", "Remove 5 minutes") { model.extendPomodoro(minutes: -5) }
                 Button { model.isPomodoroRunning ? model.pausePomodoro() : model.startPomodoro() } label: {
                     Label(model.isPomodoroRunning ? "Pause" : "Start", systemImage: model.isPomodoroRunning ? "pause.fill" : "play.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .frame(width: 150, height: 50).background(phaseColor, in: Capsule())
+                        .frame(width: 120, height: 46).background(phaseColor, in: Capsule())
                         .foregroundStyle(Color.black.opacity(0.85))
                 }
                 .buttonStyle(.plain)
@@ -98,10 +109,35 @@ struct PomodoroTimerView: View {
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
     }
 
+    private var timeEditor: some View {
+        let range = model.pomodoroMinutesRange
+        func apply() {
+            if let value = Int(minutesInput.trimmingCharacters(in: .whitespaces)) { model.setPomodoroMinutes(value) }
+            editingTime = false
+        }
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("\(model.pomodoroPhase.title) length").font(.headline)
+            HStack(spacing: 6) {
+                TextField("min", text: $minutesInput).textFieldStyle(.roundedBorder).frame(width: 64).multilineTextAlignment(.trailing)
+                    .onSubmit(apply)
+                Text("min").foregroundStyle(.secondary)
+                Spacer()
+                Button("Set", action: apply).keyboardShortcut(.defaultAction)
+            }
+            HStack(spacing: 6) {
+                ForEach([5, 10, 15, 25, 45, 60].filter { range.contains($0) }, id: \.self) { preset in
+                    Button("\(preset)") { model.setPomodoroMinutes(preset); editingTime = false }.buttonStyle(.bordered).controlSize(.small)
+                }
+            }
+            Text("Applies now and becomes the default for this phase.").font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(16).frame(width: 260)
+    }
+
     private func roundButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 15, weight: .medium))
-                .frame(width: 50, height: 50).background(.white.opacity(0.08), in: Circle())
+                .frame(width: 46, height: 46).background(.white.opacity(0.08), in: Circle())
         }
         .buttonStyle(.plain).help(label).accessibilityLabel(label)
     }

@@ -282,8 +282,30 @@ final class AppModel: ObservableObject {
         persistPomodoro()
     }
 
+    var pomodoroMinutesRange: ClosedRange<Int> {
+        switch pomodoroPhase {
+        case .work: return 1...180
+        case .shortBreak: return 1...60
+        case .longBreak: return 1...120
+        }
+    }
+
+    /// Sets the length of the current phase; also becomes the default for that phase.
+    func setPomodoroMinutes(_ minutes: Int) {
+        let valid = min(max(minutes, pomodoroMinutesRange.lowerBound), pomodoroMinutesRange.upperBound)
+        switch pomodoroPhase {
+        case .work: workMinutes = valid
+        case .shortBreak: shortBreakMinutes = valid
+        case .longBreak: longBreakMinutes = valid
+        }
+        pomodoroTotalSeconds = valid * 60
+        pomodoroRemainingSeconds = valid * 60
+        if isPomodoroRunning { pomodoroEndDate = Date().addingTimeInterval(TimeInterval(valid * 60)) }
+        persistPomodoro()
+    }
+
     func extendPomodoro(minutes: Int = 5) {
-        let extra = minutes * 60
+        let extra = max(minutes * 60, 60 - pomodoroRemainingSeconds)
         pomodoroTotalSeconds += extra
         pomodoroRemainingSeconds += extra
         pomodoroEndDate = pomodoroEndDate?.addingTimeInterval(TimeInterval(extra))
