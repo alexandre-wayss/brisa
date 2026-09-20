@@ -14,6 +14,9 @@ struct ContentView: View {
  @State private var relinkingSound: ImportedSound?
  let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","Imported","My mixes"]
  var filtered:[Sound] {model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
+ func navTab(_ title:String,_ symbol:String,selected:Bool,action:@escaping()->Void)->some View {
+  Button(action:action){Label(title,systemImage:symbol).font(.system(size:13,weight:.medium).monospacedDigit()).padding(.horizontal,16).padding(.vertical,7).background(selected ? accent:.clear,in:Capsule()).foregroundStyle(selected ? Color.black.opacity(0.82):.primary).contentShape(Capsule())}.buttonStyle(.plain)
+ }
  var body: some View {
  ZStack {
   LinearGradient(colors:[Color(red:0.045,green:0.065,blue:0.07),Color(red:0.08,green:0.115,blue:0.105),Color(red:0.045,green:0.055,blue:0.06)],startPoint:.topLeading,endPoint:.bottomTrailing).ignoresSafeArea()
@@ -23,11 +26,18 @@ struct ContentView: View {
    HStack(spacing:16){
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
-    Button { withAnimation(.easeInOut(duration:0.2)) { showPomodoro.toggle() } } label: { Label(showPomodoro ? "Sounds" : (model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro"),systemImage:showPomodoro ? "waveform" : "timer").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(accent.opacity(showPomodoro || model.isPomodoroRunning ? 0.22 : 0.10),in:Capsule()) }.buttonStyle(.plain).accessibilityLabel(showPomodoro ? "Back to sounds" : "Open Pomodoro timer")
-    Button { showSettings=true } label: { Image(systemName:"gearshape").font(.system(size:16)).padding(9) }.buttonStyle(.plain).help("Settings")
-    Button { showImport=true } label: { Label("Import audio",systemImage:"square.and.arrow.down").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule()) }.buttonStyle(.plain)
-    Button{showInputSounds=true}label:{Label("Interaction sounds",systemImage:"keyboard").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())}.buttonStyle(.plain)
-    HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())
+    HStack(spacing:4){
+     navTab("Sounds","waveform",selected:!showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false}}
+     navTab(model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro","timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true}}
+    }.padding(4).background(.white.opacity(0.07),in:Capsule())
+    Spacer()
+    HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule()).opacity(showPomodoro ? 0:1).allowsHitTesting(!showPomodoro).accessibilityHidden(showPomodoro)
+    Menu{
+     Button{showImport=true}label:{Label("Import audio…",systemImage:"square.and.arrow.down")}
+     Button{showInputSounds=true}label:{Label("Interaction sounds…",systemImage:"keyboard")}
+     Divider()
+     Button{showSettings=true}label:{Label("Settings…",systemImage:"gearshape")}
+    }label:{Image(systemName:"ellipsis").font(.system(size:14,weight:.semibold)).foregroundStyle(.primary).frame(width:34,height:34).background(.white.opacity(0.08),in:Circle())}.menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize().help("Import audio, interaction sounds, settings")
    }.padding(.horizontal,34).padding(.top,25).padding(.bottom,18)
    if showPomodoro { PomodoroTimerView(model:model) } else {
    ScrollView(.horizontal,showsIndicators:false){
