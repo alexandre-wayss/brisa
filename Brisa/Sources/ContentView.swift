@@ -23,12 +23,13 @@ struct ContentView: View {
    HStack(spacing:16){
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
-    Button { showPomodoro=true } label: { Label(model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro",systemImage:"timer").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(accent.opacity(model.isPomodoroRunning ? 0.22 : 0.10),in:Capsule()) }.buttonStyle(.plain).accessibilityLabel("Open Pomodoro timer")
+    Button { withAnimation(.easeInOut(duration:0.2)) { showPomodoro.toggle() } } label: { Label(showPomodoro ? "Sounds" : (model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro"),systemImage:showPomodoro ? "waveform" : "timer").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(accent.opacity(showPomodoro || model.isPomodoroRunning ? 0.22 : 0.10),in:Capsule()) }.buttonStyle(.plain).accessibilityLabel(showPomodoro ? "Back to sounds" : "Open Pomodoro timer")
     Button { showSettings=true } label: { Image(systemName:"gearshape").font(.system(size:16)).padding(9) }.buttonStyle(.plain).help("Settings")
     Button { showImport=true } label: { Label("Import audio",systemImage:"square.and.arrow.down").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule()) }.buttonStyle(.plain)
     Button{showInputSounds=true}label:{Label("Interaction sounds",systemImage:"keyboard").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())}.buttonStyle(.plain)
     HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(.white.opacity(0.08),in:Capsule())
    }.padding(.horizontal,34).padding(.top,25).padding(.bottom,18)
+   if showPomodoro { PomodoroTimerView(model:model) } else {
    ScrollView(.horizontal,showsIndicators:false){
     HStack(spacing:8){ForEach(categories,id:\.self){filter in
      Button{withAnimation(.easeInOut(duration:0.2)){category=filter}}label:{HStack(spacing:6){Image(systemName:icon(filter));Text(filter);if filter=="Favorites" && !model.favorites.isEmpty {Text("\(model.favorites.count)").foregroundStyle(category==filter ? Color.black.opacity(0.55):.secondary)}}.font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(category==filter ? accent:.white.opacity(0.07),in:Capsule()).foregroundStyle(category==filter ? Color.black.opacity(0.82):.primary)}.buttonStyle(.plain)
@@ -68,13 +69,13 @@ struct ContentView: View {
      }
     }.padding(.horizontal,34).padding(.bottom,18)
    }
+   }
    player.padding(.horizontal,26).padding(.bottom,22)
   }
  }.frame(minWidth:920,minHeight:640).preferredColorScheme(.dark).tint(accent)
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
- .sheet(isPresented:$showPomodoro){PomodoroTimerView(model:model)}
  .fileImporter(isPresented:Binding(get:{relinkingSound != nil},set:{if !$0 {relinkingSound=nil}}),allowedContentTypes:[.wav,.aiff,.mp3],allowsMultipleSelection:false){result in
   guard let sound=relinkingSound else{return}; defer{relinkingSound=nil}
   do { guard let url=try result.get().first else{return}; let accessed=url.startAccessingSecurityScopedResource(); defer{if accessed{url.stopAccessingSecurityScopedResource()}}; try model.relink(sound,to:url) }

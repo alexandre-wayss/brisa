@@ -274,6 +274,14 @@ final class AppModel: ObservableObject {
         persistPomodoro()
     }
 
+    func selectPomodoroPhase(_ phase: PomodoroPhase) {
+        guard !isPomodoroRunning, phase != pomodoroPhase else { return }
+        pomodoroPhase = phase
+        pomodoroTotalSeconds = pomodoroDurationSeconds
+        pomodoroRemainingSeconds = pomodoroTotalSeconds
+        persistPomodoro()
+    }
+
     func extendPomodoro(minutes: Int = 5) {
         let extra = minutes * 60
         pomodoroTotalSeconds += extra

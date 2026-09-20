@@ -1,15 +1,10 @@
 import SwiftUI
 
+/// Full-page Pomodoro: a timer hero on the left, today's progress, history and settings on the right.
 struct PomodoroTimerView: View {
-    private enum Tab: String, CaseIterable, Identifiable {
-        case timer = "Timer", stats = "Stats", settings = "Settings"
-        var id: String { rawValue }
-    }
-
     @ObservedObject var model: AppModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var tab = Tab.timer
     @State private var confirmClear = false
+    @State private var showSettings = false
 
     private var phaseColor: Color {
         switch model.pomodoroPhase {
@@ -20,214 +15,228 @@ struct PomodoroTimerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
-            HStack {
-                Label("Pomodoro", systemImage: "timer")
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                Spacer()
-                Button { dismiss() } label: { Image(systemName: "xmark.circle.fill") }
-                    .buttonStyle(.plain).foregroundStyle(.secondary)
-                    .accessibilityLabel("Close Pomodoro")
-            }
-            Picker("", selection: $tab) {
-                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented).labelsHidden()
-
-            switch tab {
-            case .timer: timerTab
-            case .stats: statsTab
-            case .settings: settingsTab
-            }
-        }
-        .padding(26).frame(width: 460, height: 640)
-    }
-
-    // MARK: Timer
-
-    private var timerTab: some View {
-        VStack(spacing: 18) {
-            TextField("What are you focusing on?", text: $model.pomodoroTask)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityLabel("Current task")
-
-            ZStack {
-                Circle().stroke(phaseColor.opacity(0.15), lineWidth: 10)
-                Circle().trim(from: 0, to: model.pomodoroProgress)
-                    .stroke(phaseColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.4), value: model.pomodoroProgress)
-                VStack(spacing: 8) {
-                    Image(systemName: model.pomodoroPhase.symbol)
-                        .font(.system(size: 22, weight: .medium)).foregroundStyle(phaseColor)
-                    Text(model.pomodoroTimeText)
-                        .font(.system(size: 58, weight: .medium, design: .rounded).monospacedDigit())
-                    Text(model.pomodoroPhase.title.uppercased())
-                        .font(.caption.weight(.bold)).tracking(1.4).foregroundStyle(.secondary)
+        ScrollView {
+            HStack(alignment: .top, spacing: 22) {
+                timerHero.frame(minWidth: 400)
+                VStack(spacing: 16) {
+                    todayCard
+                    weekCard
+                    historyCard
+                    settingsCard
                 }
+                .frame(width: 340)
             }
-            .frame(width: 250, height: 250).padding(.top, 4)
-
-            HStack(spacing: 7) {
-                ForEach(0..<model.longBreakInterval, id: \.self) { index in
-                    Circle()
-                        .fill(index < model.pomodoroCycleProgress ? phaseColor : phaseColor.opacity(0.18))
-                        .frame(width: 9, height: 9)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(model.pomodoroCycleProgress) of \(model.longBreakInterval) sessions before long break")
-
-            HStack(spacing: 10) {
-                Button { model.isPomodoroRunning ? model.pausePomodoro() : model.startPomodoro() } label: {
-                    Label(model.isPomodoroRunning ? "Pause" : "Start", systemImage: model.isPomodoroRunning ? "pause.fill" : "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent).tint(phaseColor).foregroundStyle(.black)
-                Button("+5 min", systemImage: "plus") { model.extendPomodoro() }
-                    .buttonStyle(.bordered).help("Add 5 minutes to this phase")
-                Button("Skip", systemImage: "forward.fill") { model.skipPomodoro() }
-                    .buttonStyle(.bordered)
-                Button { model.resetPomodoro() } label: { Image(systemName: "arrow.counterclockwise") }
-                    .buttonStyle(.bordered).help("Reset to a fresh focus session")
-                    .accessibilityLabel("Reset")
-            }
-
-            VStack(spacing: 6) {
-                ProgressView(value: min(Double(model.pomodoroSessionsToday.count), Double(model.pomodoroDailyGoal)), total: Double(model.pomodoroDailyGoal))
-                    .tint(phaseColor)
-                HStack {
-                    Text("\(model.pomodoroSessionsToday.count) of \(model.pomodoroDailyGoal) sessions today")
-                    Spacer()
-                    Text(minutesText(model.focusMinutesToday) + " focused")
-                }
-                .font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Text("Brisa keeps the timer running while its window is minimized and notifies you when a phase ends.")
-                .font(.caption2).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    // MARK: Stats
-
-    private var statsTab: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 10) {
-                statCard("Today", "\(model.pomodoroSessionsToday.count)", "sessions")
-                statCard("Focus today", minutesText(model.focusMinutesToday), "")
-                statCard("Streak", "\(model.pomodoroStreak)", model.pomodoroStreak == 1 ? "day" : "days")
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Last 7 days").font(.caption.weight(.bold)).tracking(1).foregroundStyle(.secondary)
-                let week = model.pomodoroWeek
-                let peak = max(week.map(\.minutes).max() ?? 0, 1)
-                HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(week, id: \.date) { day in
-                        VStack(spacing: 4) {
-                            Text(day.minutes > 0 ? "\(day.minutes)" : " ").font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary)
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Calendar.current.isDateInToday(day.date) ? accent : accent.opacity(0.4))
-                                .frame(height: max(3, 80 * CGFloat(day.minutes) / CGFloat(peak)))
-                            Text(day.date.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .bottom)
-                    }
-                }
-                .frame(height: 115, alignment: .bottom)
-                Text("Minutes of completed focus sessions · \(minutesText(model.totalFocusMinutes)) all time")
-                    .font(.caption2).foregroundStyle(.tertiary)
-            }
-            .padding(14).background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Recent sessions").font(.caption.weight(.bold)).tracking(1).foregroundStyle(.secondary)
-                    Spacer()
-                    if !model.pomodoroHistory.isEmpty {
-                        Button("Clear history", role: .destructive) { confirmClear = true }
-                            .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                if model.pomodoroHistory.isEmpty {
-                    Text("Finish a focus session and it will show up here.")
-                        .font(.callout).foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 60)
-                } else {
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            ForEach(model.pomodoroHistory.suffix(30).reversed()) { session in
-                                HStack {
-                                    Text(session.task.isEmpty ? "Untitled focus" : session.task)
-                                        .foregroundStyle(session.task.isEmpty ? .secondary : .primary).lineLimit(1)
-                                    Spacer()
-                                    Text("\(session.minutes) min").monospacedDigit().foregroundStyle(.secondary)
-                                    Text(session.end.formatted(.relative(presentation: .named)))
-                                        .font(.caption).foregroundStyle(.tertiary).frame(width: 96, alignment: .trailing)
-                                }
-                                .font(.callout).padding(.vertical, 7)
-                                Divider()
-                            }
-                        }
-                    }
-                }
-            }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 34).padding(.bottom, 18).padding(.top, 4)
         }
         .confirmationDialog("Delete all Pomodoro history?", isPresented: $confirmClear) {
             Button("Delete history", role: .destructive) { model.clearPomodoroHistory() }
         }
     }
 
-    private func statCard(_ title: String, _ value: String, _ unit: String) -> some View {
-        VStack(spacing: 3) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.system(size: 24, weight: .semibold, design: .rounded).monospacedDigit())
-            Text(unit.isEmpty ? " " : unit).font(.caption2).foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 12)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
-    }
+    // MARK: Hero
 
-    // MARK: Settings
+    private var timerHero: some View {
+        VStack(spacing: 22) {
+            HStack(spacing: 6) {
+                ForEach(PomodoroPhase.allCases, id: \.self) { phase in
+                    Button { withAnimation(.easeInOut(duration: 0.2)) { model.selectPomodoroPhase(phase) } } label: {
+                        Label(phase.title, systemImage: phase.symbol)
+                            .font(.system(size: 12, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 8)
+                            .background(model.pomodoroPhase == phase ? phaseColor : .white.opacity(0.07), in: Capsule())
+                            .foregroundStyle(model.pomodoroPhase == phase ? Color.black.opacity(0.82) : .primary)
+                    }
+                    .buttonStyle(.plain).disabled(model.isPomodoroRunning && model.pomodoroPhase != phase)
+                }
+            }
 
-    private var settingsTab: some View {
-        Form {
-            Section("Durations") {
-                Stepper("Focus: \(model.workMinutes) min", value: $model.workMinutes, in: 1...180)
-                Stepper("Short break: \(model.shortBreakMinutes) min", value: $model.shortBreakMinutes, in: 1...60)
-                Stepper("Long break: \(model.longBreakMinutes) min", value: $model.longBreakMinutes, in: 1...120)
-                Stepper("Long break after \(model.longBreakInterval) sessions", value: $model.longBreakInterval, in: 1...12)
-            }
-            Section("Routine") {
-                Toggle("Start the next phase automatically", isOn: $model.autoStartPomodoro)
-                Stepper("Daily goal: \(model.pomodoroDailyGoal) sessions", value: $model.pomodoroDailyGoal, in: 1...24)
-            }
-            Section("Ambient sound") {
-                Toggle("Change soundscape with each phase", isOn: $model.changesSoundscapeWithPomodoro)
-                if model.changesSoundscapeWithPomodoro {
-                    ForEach(PomodoroPhase.allCases, id: \.self) { phase in
-                        Picker("\(phase.title) sound", selection: Binding(
-                            get: { model.pomodoroSoundID(for: phase) },
-                            set: { model.setPomodoroSoundID($0, for: phase) }
-                        )) {
-                            Text("Suggested soundscape").tag("")
-                            ForEach(model.availableLibrary) { sound in
-                                Label(sound.name, systemImage: sound.icon).tag(sound.id)
-                            }
+            ZStack {
+                Circle().fill(phaseColor.opacity(model.isPomodoroRunning ? 0.16 : 0.08)).blur(radius: 50).frame(width: 300, height: 300)
+                Circle().stroke(.white.opacity(0.07), lineWidth: 12)
+                Circle().trim(from: 0, to: model.pomodoroProgress)
+                    .stroke(phaseColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 0.4), value: model.pomodoroProgress)
+                VStack(spacing: 6) {
+                    Text(model.pomodoroTimeText)
+                        .font(.system(size: 76, weight: .light, design: .rounded).monospacedDigit())
+                    Text(model.isPomodoroRunning ? "In progress" : "Ready")
+                        .font(.caption.weight(.bold)).tracking(1.6).textCase(.uppercase).foregroundStyle(.secondary)
+                    HStack(spacing: 7) {
+                        ForEach(0..<model.longBreakInterval, id: \.self) { index in
+                            Circle().fill(index < model.pomodoroCycleProgress ? phaseColor : .white.opacity(0.15)).frame(width: 8, height: 8)
                         }
                     }
-                    HStack {
-                        Text("Default volume")
-                        Slider(value: $model.pomodoroSoundVolume, in: 0...1)
-                        Text("\(Int(model.pomodoroSoundVolume * 100))%")
-                            .monospacedDigit().foregroundStyle(.secondary).frame(width: 36, alignment: .trailing)
+                    .padding(.top, 8)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(model.pomodoroCycleProgress) of \(model.longBreakInterval) sessions before long break")
+                }
+            }
+            .frame(width: 290, height: 290)
+
+            HStack(spacing: 8) {
+                Image(systemName: "text.cursor").foregroundStyle(.secondary)
+                TextField("What are you focusing on?", text: $model.pomodoroTask).textFieldStyle(.plain)
+                    .accessibilityLabel("Current task")
+            }
+            .padding(.horizontal, 16).padding(.vertical, 11)
+            .background(.white.opacity(0.06), in: Capsule()).frame(maxWidth: 340)
+
+            HStack(spacing: 12) {
+                roundButton("arrow.counterclockwise", "Reset") { model.resetPomodoro() }
+                Button { model.isPomodoroRunning ? model.pausePomodoro() : model.startPomodoro() } label: {
+                    Label(model.isPomodoroRunning ? "Pause" : "Start", systemImage: model.isPomodoroRunning ? "pause.fill" : "play.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 150, height: 50).background(phaseColor, in: Capsule())
+                        .foregroundStyle(Color.black.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+                roundButton("forward.fill", "Skip phase") { model.skipPomodoro() }
+                roundButton("plus", "Add 5 minutes") { model.extendPomodoro() }
+            }
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 20)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func roundButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 15, weight: .medium))
+                .frame(width: 50, height: 50).background(.white.opacity(0.08), in: Circle())
+        }
+        .buttonStyle(.plain).help(label).accessibilityLabel(label)
+    }
+
+    // MARK: Cards
+
+    private func card<Content: View>(_ title: String, @ViewBuilder trailing: () -> some View = { EmptyView() }, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(title).font(.caption.weight(.bold)).tracking(1.2).textCase(.uppercase).foregroundStyle(.secondary)
+                Spacer()
+                trailing()
+            }
+            content()
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var todayCard: some View {
+        let done = model.pomodoroSessionsToday.count
+        return card("Today") {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(done)").font(.system(size: 38, weight: .semibold, design: .rounded).monospacedDigit())
+                Text("of \(model.pomodoroDailyGoal) sessions").font(.callout).foregroundStyle(.secondary)
+            }
+            ProgressView(value: min(Double(done), Double(model.pomodoroDailyGoal)), total: Double(model.pomodoroDailyGoal)).tint(accent)
+            HStack {
+                miniStat("clock", minutesText(model.focusMinutesToday), "focused")
+                Divider().frame(height: 26)
+                miniStat("flame.fill", "\(model.pomodoroStreak)", model.pomodoroStreak == 1 ? "day streak" : "day streak")
+                Divider().frame(height: 26)
+                miniStat("sum", minutesText(model.totalFocusMinutes), "all time")
+            }
+        }
+    }
+
+    private func miniStat(_ symbol: String, _ value: String, _ label: String) -> some View {
+        VStack(spacing: 2) {
+            Label(value, systemImage: symbol).font(.system(size: 14, weight: .semibold).monospacedDigit()).labelStyle(.titleAndIcon)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var weekCard: some View {
+        let week = model.pomodoroWeek
+        let peak = max(week.map(\.minutes).max() ?? 0, 1)
+        return card("Last 7 days") {
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(week, id: \.date) { day in
+                    VStack(spacing: 4) {
+                        Text(day.minutes > 0 ? "\(day.minutes)" : " ").font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Calendar.current.isDateInToday(day.date) ? accent : accent.opacity(0.35))
+                            .frame(height: max(3, 64 * CGFloat(day.minutes) / CGFloat(peak)))
+                        Text(day.date.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
                     }
-                    Button("Apply \(model.pomodoroPhase.title) soundscape now") { model.applyPomodoroSoundscape() }
+                    .frame(maxWidth: .infinity, alignment: .bottom)
+                }
+            }
+            .frame(height: 100, alignment: .bottom)
+        }
+    }
+
+    private var historyCard: some View {
+        card("Recent sessions", trailing: {
+            if !model.pomodoroHistory.isEmpty {
+                Button("Clear") { confirmClear = true }.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
+            }
+        }) {
+            if model.pomodoroHistory.isEmpty {
+                Text("Finish a focus session and it will show up here.")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(model.pomodoroHistory.suffix(5).reversed())) { session in
+                        HStack {
+                            Text(session.task.isEmpty ? "Untitled focus" : session.task)
+                                .foregroundStyle(session.task.isEmpty ? .secondary : .primary).lineLimit(1)
+                            Spacer()
+                            Text("\(session.minutes) min").monospacedDigit().foregroundStyle(.secondary)
+                        }
+                        .font(.callout).padding(.vertical, 6)
+                        if session.id != model.pomodoroHistory.suffix(5).first?.id { Divider().opacity(0.4) }
+                    }
                 }
             }
         }
-        .formStyle(.grouped)
+    }
+
+    private var settingsCard: some View {
+        card("Settings", trailing: {
+            Button { withAnimation(.easeInOut(duration: 0.2)) { showSettings.toggle() } } label: {
+                Image(systemName: showSettings ? "chevron.up" : "chevron.down")
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel(showSettings ? "Hide settings" : "Show settings")
+        }) {
+            if showSettings {
+                VStack(alignment: .leading, spacing: 10) {
+                    Stepper("Focus: \(model.workMinutes) min", value: $model.workMinutes, in: 1...180)
+                    Stepper("Short break: \(model.shortBreakMinutes) min", value: $model.shortBreakMinutes, in: 1...60)
+                    Stepper("Long break: \(model.longBreakMinutes) min", value: $model.longBreakMinutes, in: 1...120)
+                    Stepper("Long break every \(model.longBreakInterval) sessions", value: $model.longBreakInterval, in: 1...12)
+                    Stepper("Daily goal: \(model.pomodoroDailyGoal) sessions", value: $model.pomodoroDailyGoal, in: 1...24)
+                    Toggle("Auto-start the next phase", isOn: $model.autoStartPomodoro)
+                    Divider().opacity(0.4)
+                    Toggle("Change soundscape per phase", isOn: $model.changesSoundscapeWithPomodoro)
+                    if model.changesSoundscapeWithPomodoro {
+                        ForEach(PomodoroPhase.allCases, id: \.self) { phase in
+                            Picker(phase.title, selection: Binding(
+                                get: { model.pomodoroSoundID(for: phase) },
+                                set: { model.setPomodoroSoundID($0, for: phase) }
+                            )) {
+                                Text("Suggested").tag("")
+                                ForEach(model.availableLibrary) { sound in
+                                    Label(sound.name, systemImage: sound.icon).tag(sound.id)
+                                }
+                            }
+                        }
+                        HStack {
+                            Text("Volume")
+                            Slider(value: $model.pomodoroSoundVolume, in: 0...1)
+                            Text("\(Int(model.pomodoroSoundVolume * 100))%")
+                                .monospacedDigit().foregroundStyle(.secondary).frame(width: 36, alignment: .trailing)
+                        }
+                        Button("Apply \(model.pomodoroPhase.title) sound now") { model.applyPomodoroSoundscape() }
+                    }
+                }
+                .font(.callout)
+            } else {
+                Text("\(model.workMinutes)/\(model.shortBreakMinutes)/\(model.longBreakMinutes) min · long break every \(model.longBreakInterval)")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func minutesText(_ minutes: Int) -> String {
