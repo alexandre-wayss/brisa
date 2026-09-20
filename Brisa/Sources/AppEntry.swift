@@ -60,8 +60,16 @@ struct BrisaApp: App {
                         .keyboardShortcut("q", modifiers: [.command, .option])
                 }
             }
-        MenuBarExtra("Brisa", systemImage: "wind") {
+        MenuBarExtra {
             MenuBarPlayerView(model: model)
+        } label: {
+            // While a Pomodoro is running (or paused mid-phase) the menu bar shows the countdown instead of the Brisa icon.
+            if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
+                Label(model.pomodoroTimeText, systemImage: model.isPomodoroRunning ? model.pomodoroPhase.symbol : "pause.fill")
+                    .labelStyle(.titleAndIcon).monospacedDigit()
+            } else {
+                Image(systemName: "wind")
+            }
         }
         .menuBarExtraStyle(.window)
     }
