@@ -3,6 +3,7 @@ import SwiftUI
 /// Full-page Pomodoro: a timer hero on the left, today's progress, history and settings on the right.
 struct PomodoroTimerView: View {
     @ObservedObject private var themeStore = BrisaThemeStore.shared
+    @ObservedObject private var widget = BrisaPomodoroWidget.shared
     @ObservedObject var model: AppModel
     @State private var confirmClear = false
     @State private var showSettings = false
@@ -10,13 +11,7 @@ struct PomodoroTimerView: View {
     @State private var newTask = ""
     @State private var minutesInput = ""
 
-    private var phaseColor: Color {
-        switch model.pomodoroPhase {
-        case .work: return accent
-        case .shortBreak: return themeStore.current == .light ? Color(red: 0.13, green: 0.36, blue: 0.62) : Color(red: 0.55, green: 0.75, blue: 0.95)
-        case .longBreak: return themeStore.current == .light ? Color(red: 0.36, green: 0.25, blue: 0.62) : Color(red: 0.75, green: 0.65, blue: 0.95)
-        }
-    }
+    private var phaseColor: Color { themeStore.current.color(for: model.pomodoroPhase) }
 
     var body: some View {
         // The timer stays put; only the sidebar on the right scrolls.
@@ -109,6 +104,17 @@ struct PomodoroTimerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.vertical, 22).padding(.horizontal, 20)
         .background(surface.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
+        .overlay(alignment: .topTrailing) {
+            Button { widget.enabled.toggle() } label: {
+                Image(systemName: widget.enabled ? "macwindow.badge.plus" : "macwindow")
+                    .font(.system(size: 13, weight: .medium)).frame(width: 32, height: 32)
+                    .background(surface.opacity(widget.enabled ? 0.16 : 0.07), in: Circle())
+                    .foregroundStyle(widget.enabled ? phaseColor : .secondary)
+            }
+            .buttonStyle(.plain).padding(14)
+            .help(widget.enabled ? "Hide the desktop widget" : "Show a Pomodoro widget on the desktop")
+            .accessibilityLabel(widget.enabled ? "Hide desktop widget" : "Show desktop widget")
+        }
     }
 
     private var activeTaskChip: some View {

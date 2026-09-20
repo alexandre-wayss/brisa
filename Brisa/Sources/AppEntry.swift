@@ -48,7 +48,7 @@ struct BrisaApp: App {
     var body: some Scene {
         Window("Brisa", id: "main") {
             BrisaMainView(model: model)
-                .onAppear { delegate.connectPlayback { model.togglePlayback() }; BrisaDesktopPlayer.shared.restore() }
+                .onAppear { delegate.connectPlayback { model.togglePlayback() }; BrisaDesktopPlayer.shared.restore(); BrisaPomodoroWidget.shared.restore() }
         }
             .windowStyle(.hiddenTitleBar)
             .defaultSize(width: 1080, height: 770)
@@ -289,6 +289,7 @@ struct BrisaWidgetSettings: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: AppModel
     @ObservedObject private var themes = BrisaThemeStore.shared
+    @ObservedObject private var pomodoroWidget = BrisaPomodoroWidget.shared
 
     private var hasPendingPreview: Bool { themes.preview != nil && themes.preview != themes.selected }
 
@@ -320,6 +321,13 @@ struct BrisaWidgetSettings: View {
                 }
             Text("Drag anywhere except the volume slider to position it. Pin and lock controls live on the widget.")
                 .font(.caption).foregroundStyle(.secondary).frame(width: 380, alignment: .leading)
+            Divider()
+            Toggle(isOn: $pomodoroWidget.enabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("Pomodoro widget", systemImage: "timer").font(.headline)
+                    Text("A small timer on your desktop with start, pause and skip.").font(.caption).foregroundStyle(.secondary)
+                }
+            }.toggleStyle(.switch)
         }.padding(32)
         }
         .frame(width: 470, height: 720)

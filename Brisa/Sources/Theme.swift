@@ -57,6 +57,15 @@ enum BrisaTheme: String, CaseIterable, Identifiable {
     /// Opacity of the background glows; softer on the light theme.
     var glowStrength: Double { self == .light ? 0.5 : 1 }
 
+    /// Accent for a Pomodoro phase; break colors get darker variants on the light theme so they stay readable.
+    func color(for phase: PomodoroPhase) -> Color {
+        switch phase {
+        case .work: return accent
+        case .shortBreak: return self == .light ? Color(red: 0.13, green: 0.36, blue: 0.62) : Color(red: 0.55, green: 0.75, blue: 0.95)
+        case .longBreak: return self == .light ? Color(red: 0.36, green: 0.25, blue: 0.62) : Color(red: 0.75, green: 0.65, blue: 0.95)
+        }
+    }
+
     /// Tint laid over the mini player's material to give it depth.
     var shade: Color { self == .light ? Color.white.opacity(0.45) : Color.black.opacity(0.35) }
 }

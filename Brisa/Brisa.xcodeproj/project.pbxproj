@@ -378,9 +378,13 @@
 }
 		939398DBB19571CA42D723CF /* PomodoroTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */; };
 		7C1E5A0B3D2F4A6981B0C4D7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */; };
+		B4D80C2E6F1A93577E2D5A08 /* PomodoroWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19F3C7E5B2D40886C1E7D35 /* PomodoroWidget.swift */; };
 		4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroTimerView.swift; sourceTree = "<group>"; };
 		2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		A19F3C7E5B2D40886C1E7D35 /* PomodoroWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroWidget.swift; sourceTree = "<group>"; };
 				4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */,
 				2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */,
+				A19F3C7E5B2D40886C1E7D35 /* PomodoroWidget.swift */,
 				939398DBB19571CA42D723CF /* PomodoroTimerView.swift in Sources */,
 				7C1E5A0B3D2F4A6981B0C4D7 /* Theme.swift in Sources */,
+				B4D80C2E6F1A93577E2D5A08 /* PomodoroWidget.swift in Sources */,
