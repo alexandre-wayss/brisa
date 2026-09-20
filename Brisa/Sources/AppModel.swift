@@ -31,6 +31,14 @@ struct PomodoroSession: Codable, Identifiable, Equatable {
     var minutes: Int
 }
 
+struct PomodoroTask: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var title: String
+    var estimate = 1
+    var completedSessions = 0
+    var isDone = false
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     static let shared = AppModel()
@@ -55,7 +63,8 @@ final class AppModel: ObservableObject {
     @Published var longBreakMinutes = 15 { didSet { let valid = min(max(longBreakMinutes, 1), 120); if valid != longBreakMinutes { longBreakMinutes = valid } else { syncIdlePomodoro(); persistPomodoro() } } }
     @Published var longBreakInterval = 4 { didSet { let valid = min(max(longBreakInterval, 1), 12); if valid != longBreakInterval { longBreakInterval = valid } else { persistPomodoro() } } }
     @Published var pomodoroTotalSeconds = 25 * 60
-    @Published var pomodoroTask = "" { didSet { persistPomodoro() } }
+    @Published var pomodoroTasks: [PomodoroTask] = [] { didSet { persistPomodoroTasks() } }
+    @Published var activePomodoroTaskID: UUID? { didSet { persistPomodoro() } }
     @Published var autoStartPomodoro = false { didSet { persistPomodoro() } }
     @Published var pomodoroDailyGoal = 8 { didSet { let valid = min(max(pomodoroDailyGoal, 1), 24); if valid != pomodoroDailyGoal { pomodoroDailyGoal = valid } else { persistPomodoro() } } }
     @Published var pomodoroHistory: [PomodoroSession] = [] { didSet { persistPomodoroHistory() } }
@@ -242,6 +251,45 @@ final class AppModel: ObservableObject {
         }
     }
 
+    var activePomodoroTask: PomodoroTask? { pomodoroTasks.first { $0.id == activePomodoroTaskID } }
+
+    func addPomodoroTask(_ title: String, estimate: Int = 1) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        let task = PomodoroTask(title: title, estimate: estimate)
+        pomodoroTasks.append(task)
+        if activePomodoroTaskID == nil { activePomodoroTaskID = task.id }
+    }
+
+    func selectPomodoroTask(_ id: UUID?) {
+        guard id == nil || pomodoroTasks.contains(where: { $0.id == id && !$0.isDone }) else { return }
+        activePomodoroTaskID = id
+    }
+
+    func togglePomodoroTaskDone(_ id: UUID) {
+        guard let index = pomodoroTasks.firstIndex(where: { $0.id == id }) else { return }
+        pomodoroTasks[index].isDone.toggle()
+        if pomodoroTasks[index].isDone, activePomodoroTaskID == id {
+            activePomodoroTaskID = pomodoroTasks.first { !$0.isDone }?.id
+        } else if activePomodoroTaskID == nil, !pomodoroTasks[index].isDone {
+            activePomodoroTaskID = id
+        }
+    }
+
+    func setPomodoroTaskEstimate(_ id: UUID, _ estimate: Int) {
+        guard let index = pomodoroTasks.firstIndex(where: { $0.id == id }) else { return }
+        pomodoroTasks[index].estimate = min(max(estimate, 1), 12)
+    }
+
+    func removePomodoroTask(_ id: UUID) {
+        pomodoroTasks.removeAll { $0.id == id }
+        if activePomodoroTaskID == id { activePomodoroTaskID = pomodoroTasks.first { !$0.isDone }?.id }
+    }
+
+    func clearCompletedPomodoroTasks() {
+        pomodoroTasks.removeAll { $0.isDone }
+    }
+
     func clearPomodoroHistory() { pomodoroHistory = [] }
 
     var pomodoroTimeText: String {
@@ -374,9 +422,11 @@ final class AppModel: ObservableObject {
     private func advancePomodoro(completed: Bool) {
         let finished = pomodoroPhase
         let wasRunning = isPomodoroRunning
+        // The cycle position advances on skip too, so 25/5/25/5… always reaches the long break.
+        if finished == .work { completedPomodoros += 1 }
         if completed && finished == .work {
-            completedPomodoros += 1
-            let task = pomodoroTask.trimmingCharacters(in: .whitespacesAndNewlines)
+            let task = activePomodoroTask?.title ?? ""
+            if let index = pomodoroTasks.firstIndex(where: { $0.id == activePomodoroTaskID }) { pomodoroTasks[index].completedSessions += 1 }
             pomodoroHistory.append(PomodoroSession(end: Date(), task: task, minutes: max(1, Int((Double(pomodoroTotalSeconds) / 60).rounded()))))
             if pomodoroHistory.count > 500 { pomodoroHistory.removeFirst(pomodoroHistory.count - 500) }
         }
@@ -407,7 +457,11 @@ final class AppModel: ObservableObject {
         pomodoroSoundIDs = defaults.dictionary(forKey: "pomodoro.soundIDs") as? [String: String] ?? [:]
         pomodoroSoundVolume = defaults.object(forKey: "pomodoro.soundVolume") as? Double ?? 0.05
         completedPomodoros = defaults.integer(forKey: "pomodoro.completed")
-        pomodoroTask = defaults.string(forKey: "pomodoro.task") ?? ""
+        if let data = defaults.data(forKey: "pomodoro.tasks"),
+           let saved = try? JSONDecoder().decode([PomodoroTask].self, from: data) {
+            pomodoroTasks = saved
+        }
+        activePomodoroTaskID = defaults.string(forKey: "pomodoro.activeTask").flatMap(UUID.init(uuidString:)).flatMap { id in pomodoroTasks.contains { $0.id == id && !$0.isDone } ? id : nil }
         autoStartPomodoro = defaults.bool(forKey: "pomodoro.autoStart")
         pomodoroDailyGoal = defaults.object(forKey: "pomodoro.dailyGoal") as? Int ?? 8
         if let data = defaults.data(forKey: "pomodoro.history"),
@@ -446,10 +500,15 @@ final class AppModel: ObservableObject {
         defaults.set(pomodoroSoundIDs, forKey: "pomodoro.soundIDs")
         defaults.set(pomodoroSoundVolume, forKey: "pomodoro.soundVolume")
         defaults.set(pomodoroTotalSeconds, forKey: "pomodoro.total")
-        defaults.set(pomodoroTask, forKey: "pomodoro.task")
+        defaults.set(activePomodoroTaskID?.uuidString, forKey: "pomodoro.activeTask")
         defaults.set(autoStartPomodoro, forKey: "pomodoro.autoStart")
         defaults.set(pomodoroDailyGoal, forKey: "pomodoro.dailyGoal")
         defaults.set(pomodoroEndDate?.timeIntervalSince1970, forKey: "pomodoro.end")
+    }
+
+    private func persistPomodoroTasks() {
+        guard !isRestoringPomodoro, let data = try? JSONEncoder().encode(pomodoroTasks) else { return }
+        UserDefaults.standard.set(data, forKey: "pomodoro.tasks")
     }
 
     private func persistPomodoroHistory() {

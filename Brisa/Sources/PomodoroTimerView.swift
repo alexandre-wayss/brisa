@@ -6,6 +6,7 @@ struct PomodoroTimerView: View {
     @State private var confirmClear = false
     @State private var showSettings = false
     @State private var editingTime = false
+    @State private var newTask = ""
     @State private var minutesInput = ""
 
     private var phaseColor: Color {
@@ -21,6 +22,7 @@ struct PomodoroTimerView: View {
             HStack(alignment: .top, spacing: 22) {
                 timerHero.frame(minWidth: 400)
                 VStack(spacing: 16) {
+                    tasksCard
                     todayCard
                     weekCard
                     historyCard
@@ -83,13 +85,7 @@ struct PomodoroTimerView: View {
             }
             .frame(width: 290, height: 290)
 
-            HStack(spacing: 8) {
-                Image(systemName: "text.cursor").foregroundStyle(.secondary)
-                TextField("What are you focusing on?", text: $model.pomodoroTask).textFieldStyle(.plain)
-                    .accessibilityLabel("Current task")
-            }
-            .padding(.horizontal, 16).padding(.vertical, 11)
-            .background(.white.opacity(0.06), in: Capsule()).frame(maxWidth: 340)
+            activeTaskChip
 
             HStack(spacing: 12) {
                 roundButton("arrow.counterclockwise", "Reset") { model.resetPomodoro() }
@@ -107,6 +103,106 @@ struct PomodoroTimerView: View {
         }
         .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 20)
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    private var activeTaskChip: some View {
+        HStack(spacing: 8) {
+            Image(systemName: model.activePomodoroTask == nil ? "scope" : "target").foregroundStyle(phaseColor)
+            if let task = model.activePomodoroTask {
+                Text(task.title).lineLimit(1)
+                Text("\(task.completedSessions)/\(task.estimate)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            } else {
+                Text("No task selected — pick or add one below").foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 13, weight: .medium))
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(.white.opacity(0.06), in: Capsule()).frame(maxWidth: 380)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var tasksCard: some View {
+        let open = model.pomodoroTasks.filter { !$0.isDone }
+        let done = model.pomodoroTasks.filter { $0.isDone }
+        let planned = open.reduce(0) { $0 + max($1.estimate - $1.completedSessions, 0) }
+        return card("Tasks", trailing: {
+            if !open.isEmpty {
+                Text("\(planned) session\(planned == 1 ? "" : "s") left").font(.caption).foregroundStyle(.secondary)
+            }
+        }) {
+            HStack(spacing: 8) {
+                Button { model.addPomodoroTask(newTask); newTask = "" } label: {
+                    Image(systemName: "plus.circle.fill").foregroundStyle(newTask.trimmingCharacters(in: .whitespaces).isEmpty ? .secondary : phaseColor)
+                }
+                .buttonStyle(.plain).accessibilityLabel("Add task")
+                TextField("Add a task and press Return", text: $newTask).textFieldStyle(.plain)
+                    .onSubmit { model.addPomodoroTask(newTask); newTask = "" }
+                    .accessibilityLabel("New task")
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+
+            if model.pomodoroTasks.isEmpty {
+                Text("Break your work into tasks, estimate how many focus sessions each needs, and Brisa keeps count as you go.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            VStack(spacing: 6) {
+                ForEach(open) { taskRow($0) }
+            }
+            if !done.isEmpty {
+                HStack {
+                    Text("Completed · \(done.count)").font(.caption.weight(.bold)).tracking(1).textCase(.uppercase).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Clear") { withAnimation { model.clearCompletedPomodoroTasks() } }
+                        .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.top, 4)
+                VStack(spacing: 6) {
+                    ForEach(done) { taskRow($0) }
+                }
+            }
+        }
+    }
+
+    private func taskRow(_ task: PomodoroTask) -> some View {
+        let isActive = model.activePomodoroTaskID == task.id
+        return HStack(spacing: 10) {
+            Button { withAnimation(.easeInOut(duration: 0.2)) { model.togglePomodoroTaskDone(task.id) } } label: {
+                Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle").font(.system(size: 18))
+                    .foregroundStyle(task.isDone ? phaseColor : .secondary)
+            }
+            .buttonStyle(.plain).accessibilityLabel(task.isDone ? "Mark \(task.title) as not done" : "Mark \(task.title) as done")
+
+            Button { model.selectPomodoroTask(isActive ? nil : task.id) } label: {
+                Text(task.title).strikethrough(task.isDone).lineLimit(1)
+                    .foregroundStyle(task.isDone ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).disabled(task.isDone)
+            .help(isActive ? "Stop working on this task" : "Work on this task")
+
+            if isActive { Text("Now").font(.caption2.weight(.bold)).foregroundStyle(phaseColor) }
+
+            Menu {
+                ForEach(1...8, id: \.self) { count in
+                    Button("\(count) session\(count == 1 ? "" : "s")") { model.setPomodoroTaskEstimate(task.id, count) }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "timer").font(.caption2)
+                    Text("\(task.completedSessions)/\(task.estimate)").font(.caption.monospacedDigit())
+                }
+                .foregroundStyle(task.completedSessions >= task.estimate ? phaseColor : .secondary)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Estimated focus sessions")
+
+            Button { withAnimation { model.removePomodoroTask(task.id) } } label: { Image(systemName: "xmark").font(.caption) }
+                .buttonStyle(.plain).foregroundStyle(.tertiary).accessibilityLabel("Delete \(task.title)")
+        }
+        .font(.callout)
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .background(isActive ? phaseColor.opacity(0.14) : .white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isActive ? phaseColor.opacity(0.5) : .clear, lineWidth: 1))
     }
 
     private var timeEditor: some View {
