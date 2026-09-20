@@ -39,6 +39,38 @@ struct PomodoroTask: Codable, Identifiable, Equatable {
     var isDone = false
 }
 
+/// A curated blend for a Pomodoro phase. Weights are relative loudness (0...1); the phase volume scales them.
+struct PomodoroSoundPreset: Identifiable {
+    let id: String
+    let name: String
+    let icon: String
+    let detail: String
+    let weights: [String: Double]
+}
+
+extension PomodoroPhase {
+    var presets: [PomodoroSoundPreset] {
+        switch self {
+        case .work: return [
+            .init(id: "deep", name: "Deep focus", icon: "scope", detail: "Brown noise under light rain", weights: ["brown": 1, "rain": 0.6]),
+            .init(id: "cafe", name: "Café hum", icon: "cup.and.saucer.fill", detail: "Busy room, soft rain", weights: ["coffeeShop": 1, "rain": 0.35]),
+            .init(id: "steady", name: "Steady flow", icon: "wind", detail: "Pink noise with a fan", weights: ["pink": 0.9, "fan": 0.5]),
+            .init(id: "rainy", name: "Rainy desk", icon: "cloud.rain", detail: "Tent rain, distant thunder", weights: ["tent": 1, "thunder": 0.35])
+        ]
+        case .shortBreak: return [
+            .init(id: "ocean", name: "Ocean breeze", icon: "water.waves", detail: "Waves and a light wind", weights: ["ocean": 1, "wind": 0.5]),
+            .init(id: "sunrise", name: "Sunrise", icon: "bird", detail: "Birdsong over a creek", weights: ["birds": 0.8, "creek": 0.7]),
+            .init(id: "falls", name: "Waterfall", icon: "drop.fill", detail: "One continuous flow", weights: ["waterfall": 1])
+        ]
+        case .longBreak: return [
+            .init(id: "fireside", name: "Fireside", icon: "flame.fill", detail: "Crackling fire, crickets", weights: ["realFireplace": 1, "night": 0.45]),
+            .init(id: "beach", name: "Beach", icon: "beach.umbrella", detail: "Real waves and wind", weights: ["beachWaves": 1, "wind": 0.4]),
+            .init(id: "storm", name: "Slow storm", icon: "cloud.bolt.rain", detail: "Heavy rain, rolling thunder", weights: ["heavy": 0.9, "thunder": 0.4])
+        ]
+        }
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     static let shared = AppModel()
@@ -370,16 +402,34 @@ final class AppModel: ObservableObject {
         advancePomodoro(completed: false)
     }
 
+    func pomodoroLevels(for preset: PomodoroSoundPreset) -> [String: Double] {
+        let available = Set(availableLibrary.map(\.id))
+        return preset.weights.filter { available.contains($0.key) }.mapValues { min($0 * pomodoroSoundVolume, 1) }
+    }
+
+    func applyPomodoroPreset(_ preset: PomodoroSoundPreset) {
+        let levels = pomodoroLevels(for: preset)
+        guard !levels.isEmpty else { return }
+        applyMix(levels)
+    }
+
+    func isPomodoroPresetPlaying(_ preset: PomodoroSoundPreset) -> Bool {
+        isPlaying && levels == pomodoroLevels(for: preset)
+    }
+
+    /// Plays what the user picked for the current phase: a preset ("preset:id"), one of their saved mixes ("mix:uuid"),
+    /// a single sound (its id), or — when empty — the first suggested preset for the phase.
     func applyPomodoroSoundscape() {
         guard changesSoundscapeWithPomodoro else { return }
-        if let soundID = pomodoroSoundIDs[pomodoroPhase.rawValue], !soundID.isEmpty {
-            applyMix([soundID: pomodoroSoundVolume])
-            return
-        }
-        switch pomodoroPhase {
-        case .work: applyMix(["brown": pomodoroSoundVolume, "rain": pomodoroSoundVolume])
-        case .shortBreak: applyMix(["ocean": pomodoroSoundVolume, "wind": pomodoroSoundVolume])
-        case .longBreak: applyMix(["night": pomodoroSoundVolume, "fireplace": pomodoroSoundVolume])
+        let choice = pomodoroSoundIDs[pomodoroPhase.rawValue] ?? ""
+        if choice.hasPrefix("mix:"), let mix = mixes.first(where: { "mix:\($0.id.uuidString)" == choice }) {
+            applyMix(mix.levels)
+        } else if choice.hasPrefix("preset:"), let preset = pomodoroPhase.presets.first(where: { "preset:\($0.id)" == choice }) {
+            applyPomodoroPreset(preset)
+        } else if !choice.isEmpty, availableLibrary.contains(where: { $0.id == choice }) {
+            applyMix([choice: pomodoroSoundVolume])
+        } else if let preset = pomodoroPhase.presets.first {
+            applyPomodoroPreset(preset)
         }
     }
 

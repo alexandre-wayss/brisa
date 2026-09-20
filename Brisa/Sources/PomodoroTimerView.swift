@@ -26,6 +26,7 @@ struct PomodoroTimerView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 16) {
                         tasksCard
+                        soundCard
                         todayCard
                         weekCard
                         historyCard
@@ -257,6 +258,35 @@ struct PomodoroTimerView: View {
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
     }
 
+    private var soundCard: some View {
+        card("Sound · \(model.pomodoroPhase.title)") {
+            VStack(spacing: 6) {
+                ForEach(model.pomodoroPhase.presets) { preset in
+                    let playing = model.isPomodoroPresetPlaying(preset)
+                    Button {
+                        if playing { model.isPlaying = false; model.synchronizeAudio() } else { model.applyPomodoroPreset(preset) }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: preset.icon).frame(width: 22).foregroundStyle(phaseColor)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(preset.name).font(.callout.weight(.medium))
+                                Text(preset.detail).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: playing ? "pause.fill" : "play.fill").font(.caption).foregroundStyle(playing ? phaseColor : .secondary)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle())
+                        .background(playing ? phaseColor.opacity(0.14) : .white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(playing ? "Pause" : "Play") \(preset.name)")
+                }
+            }
+            Text(model.changesSoundscapeWithPomodoro ? "Auto-plays the first suggestion (or your pick in Settings) at each phase." : "Turn on “Change soundscape per phase” in Settings to switch automatically.")
+                .font(.caption2).foregroundStyle(.tertiary)
+        }
+    }
+
     private var todayCard: some View {
         let done = model.pomodoroSessionsToday.count
         return card("Today") {
@@ -352,14 +382,24 @@ struct PomodoroTimerView: View {
                                 get: { model.pomodoroSoundID(for: phase) },
                                 set: { model.setPomodoroSoundID($0, for: phase) }
                             )) {
-                                Text("Suggested").tag("")
-                                ForEach(model.availableLibrary) { sound in
-                                    Label(sound.name, systemImage: sound.icon).tag(sound.id)
+                                Text("Suggested (\(phase.presets.first?.name ?? "auto"))").tag("")
+                                Section("Suggestions") {
+                                    ForEach(phase.presets) { Label($0.name, systemImage: $0.icon).tag("preset:\($0.id)") }
+                                }
+                                if !model.mixes.isEmpty {
+                                    Section("My mixes") {
+                                        ForEach(model.mixes) { Label($0.name, systemImage: "square.stack").tag("mix:\($0.id.uuidString)") }
+                                    }
+                                }
+                                Section("Single sound") {
+                                    ForEach(model.availableLibrary) { sound in
+                                        Label(sound.name, systemImage: sound.icon).tag(sound.id)
+                                    }
                                 }
                             }
                         }
                         HStack {
-                            Text("Volume")
+                            Text("Base volume")
                             Slider(value: $model.pomodoroSoundVolume, in: 0...1)
                             Text("\(Int(model.pomodoroSoundVolume * 100))%")
                                 .monospacedDigit().foregroundStyle(.secondary).frame(width: 36, alignment: .trailing)
