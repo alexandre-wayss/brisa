@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 struct InputSoundsView:View {
+ @ObservedObject private var themeStore=BrisaThemeStore.shared
  @ObservedObject var input:InputSounds
  @Environment(\.dismiss) private var dismiss
  var body:some View {
@@ -37,6 +38,6 @@ struct InputSoundsView:View {
    }
    Text("Brisa does not read or store typed text. Protected macOS fields may not emit sound. Your settings and volume are restored when Brisa opens.").font(.caption).foregroundStyle(.secondary)
    if let failure=input.failure {Text("Audio error: \(failure)").font(.caption).foregroundStyle(.red)}
-  }.padding(28).frame(width:560).tint(accent).preferredColorScheme(.dark)
+  }.padding(28).frame(width:560).tint(accent).preferredColorScheme(themeStore.current.scheme)
  }
 }

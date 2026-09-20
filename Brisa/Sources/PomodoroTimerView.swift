@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PomodoroTimerView: View {
+    @ObservedObject private var themeStore = BrisaThemeStore.shared
     @ObservedObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
 
@@ -34,7 +35,7 @@ struct PomodoroTimerView: View {
                     Label(model.isPomodoroRunning ? "Pause" : "Start", systemImage: model.isPomodoroRunning ? "pause.fill" : "play.fill")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent).tint(accent).foregroundStyle(.black)
+                .buttonStyle(.borderedProminent).tint(accent).foregroundStyle(onAccent)
                 Button("Skip", systemImage: "forward.fill") { model.skipPomodoro() }
                     .buttonStyle(.bordered)
                 Button("Reset", systemImage: "arrow.counterclockwise") { model.resetPomodoro() }
