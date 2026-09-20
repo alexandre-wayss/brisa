@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 import AppKit
 
 struct ImportSoundsView: View {
+    @ObservedObject private var themeStore = BrisaThemeStore.shared
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: AppModel
     @State private var urlText = ""
@@ -47,7 +48,7 @@ struct ImportSoundsView: View {
                 }.disabled(importing || urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(26).frame(width: 520).preferredColorScheme(.dark).tint(accent)
+        .padding(26).frame(width: 520).preferredColorScheme(themeStore.current.scheme).tint(accent)
         .fileImporter(isPresented: $choosingFile, allowedContentTypes: audioTypes, allowsMultipleSelection: false) { result in
             do {
                 guard let url = try result.get().first else { return }

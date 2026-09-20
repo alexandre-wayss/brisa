@@ -175,13 +175,14 @@ private struct LiveBrisaPlayer: View {
     @State private var heldPhase = 0.0
     @State private var lastRenderedPhase = 0.0
     @State private var animationStart: Date?
-    private let mint = Color(red: 0.65, green: 0.93, blue: 0.77)
+    @ObservedObject private var themeStore = BrisaThemeStore.shared
+    private var mint: Color { themeStore.current.accent }
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 26).fill(.ultraThinMaterial)
             RoundedRectangle(cornerRadius: 26)
-                .fill(LinearGradient(colors: [mint.opacity(0.14), Color.black.opacity(0.35)],
+                .fill(LinearGradient(colors: [mint.opacity(0.14), themeStore.current.shade],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.isPlaying || reduceMotion)) { timeline in
                 let phase = animationStart.map { heldPhase + max(0, timeline.date.timeIntervalSince($0)) * 0.65 } ?? heldPhase
@@ -251,17 +252,17 @@ private struct LiveBrisaPlayer: View {
                     Button { model.togglePlayback() } label: {
                         Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 20)).frame(width: 52, height: 52)
-                            .background(.white.opacity(0.12), in: Circle())
+                            .background(surface.opacity(0.12), in: Circle())
                             .overlay(Circle().strokeBorder(mint.opacity(0.5), lineWidth: 1))
                     }.buttonStyle(.plain).accessibilityLabel(model.isPlaying ? "Pause" : "Play")
                 }
             }.padding(22)
         }
         .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(
-            LinearGradient(colors: [.white.opacity(0.5), .clear, mint.opacity(0.5)],
+            LinearGradient(colors: [surface.opacity(themeStore.current == .light ? 0.25 : 0.5), .clear, mint.opacity(0.5)],
                            startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 26))
-        .frame(width: 380, height: 240).preferredColorScheme(.dark).tint(mint)
+        .frame(width: 380, height: 240).preferredColorScheme(themeStore.current.scheme).tint(mint)
         .coordinateSpace(name: "miniSurface")
         .onAppear { if model.isPlaying && !reduceMotion { animationStart = .now } }
         .onChange(of: model.isPlaying && !reduceMotion) { running in
@@ -287,18 +288,25 @@ private struct LiveBrisaPlayer: View {
 struct BrisaWidgetSettings: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: AppModel
+    @ObservedObject private var themes = BrisaThemeStore.shared
+
+    private var hasPendingPreview: Bool { themes.preview != nil && themes.preview != themes.selected }
+
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 24) {
             HStack {
                 Text("Settings").font(.title2.bold())
                 Spacer()
-                Button("Done") { dismiss() }
+                Button("Done") { themes.cancelPreview(); dismiss() }
             }
+            appearance
             Label("Widgets", systemImage: "square.grid.2x2").font(.headline)
             Text("Your quiet space, right on your desktop.").foregroundStyle(.secondary)
             LiveBrisaPlayer(model: model).allowsHitTesting(false)
                 .overlay(alignment: .bottomTrailing) {
                     Button {
+                        themes.cancelPreview()
                         dismiss()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             BrisaDesktopPlayer.shared.addToDesktop()
@@ -306,12 +314,57 @@ struct BrisaWidgetSettings: View {
                     } label: {
                         Image(systemName: "plus").font(.title2.weight(.medium))
                             .frame(width: 48, height: 48).background(.regularMaterial, in: Circle())
-                            .overlay(Circle().strokeBorder(.white.opacity(0.3)))
+                            .overlay(Circle().strokeBorder(surface.opacity(0.3)))
                     }.buttonStyle(.plain).help("Add to desktop").accessibilityLabel("Add widget to desktop")
                         .offset(x: 16, y: 16)
                 }
             Text("Drag anywhere except the volume slider to position it. Pin and lock controls live on the widget.")
                 .font(.caption).foregroundStyle(.secondary).frame(width: 380, alignment: .leading)
-        }.padding(32).frame(width: 470).preferredColorScheme(.dark)
+        }.padding(32)
+        }
+        .frame(width: 470, height: 720)
+        .background(themes.current.background[1].opacity(0.001))
+        .preferredColorScheme(themes.current.scheme)
+        .tint(themes.current.accent)
+        .onDisappear { themes.cancelPreview() }
+    }
+
+    private var appearance: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Appearance", systemImage: "paintpalette").font(.headline)
+            Text("Pick a theme to preview it across the app and the mini player, then apply it.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                ForEach(BrisaTheme.allCases) { theme in
+                    let isApplied = themes.selected == theme
+                    let isShown = themes.current == theme
+                    Button { withAnimation(.easeInOut(duration: 0.2)) { themes.preview = theme == themes.selected ? nil : theme } } label: {
+                        VStack(spacing: 6) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                Circle().fill(theme.accent).frame(width: 16, height: 16)
+                            }
+                            .frame(height: 46)
+                            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isShown ? theme.accent : Color.gray.opacity(0.35), lineWidth: isShown ? 2 : 1))
+                            Text(theme.name).font(.caption.weight(isShown ? .semibold : .regular))
+                            Image(systemName: isApplied ? "checkmark.circle.fill" : "circle").font(.caption2)
+                                .foregroundStyle(isApplied ? themes.current.accent : .secondary).opacity(isApplied ? 1 : 0.4)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(theme.name) theme\(isApplied ? ", applied" : "")")
+                }
+            }
+            if hasPendingPreview, let preview = themes.preview {
+                HStack {
+                    Text("Previewing \(preview.name)").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Cancel") { withAnimation { themes.cancelPreview() } }
+                    Button("Apply") { withAnimation { themes.apply(preview) } }.keyboardShortcut(.defaultAction)
+                }
+            }
+        }
     }
 }

@@ -377,6 +377,10 @@
 	rootObject = 4A1984492DC2971FB43E60A9 /* Project object */;
 }
 		939398DBB19571CA42D723CF /* PomodoroTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */; };
+		7C1E5A0B3D2F4A6981B0C4D7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */; };
 		4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroTimerView.swift; sourceTree = "<group>"; };
+		2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 				4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */,
+				2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */,
 				939398DBB19571CA42D723CF /* PomodoroTimerView.swift in Sources */,
+				7C1E5A0B3D2F4A6981B0C4D7 /* Theme.swift in Sources */,

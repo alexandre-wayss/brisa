@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Full-page Pomodoro: a timer hero on the left, today's progress, history and settings on the right.
 struct PomodoroTimerView: View {
+    @ObservedObject private var themeStore = BrisaThemeStore.shared
     @ObservedObject var model: AppModel
     @State private var confirmClear = false
     @State private var showSettings = false
@@ -12,8 +13,8 @@ struct PomodoroTimerView: View {
     private var phaseColor: Color {
         switch model.pomodoroPhase {
         case .work: return accent
-        case .shortBreak: return Color(red: 0.55, green: 0.75, blue: 0.95)
-        case .longBreak: return Color(red: 0.75, green: 0.65, blue: 0.95)
+        case .shortBreak: return themeStore.current == .light ? Color(red: 0.13, green: 0.36, blue: 0.62) : Color(red: 0.55, green: 0.75, blue: 0.95)
+        case .longBreak: return themeStore.current == .light ? Color(red: 0.36, green: 0.25, blue: 0.62) : Color(red: 0.75, green: 0.65, blue: 0.95)
         }
     }
 
@@ -51,8 +52,8 @@ struct PomodoroTimerView: View {
                     Button { withAnimation(.easeInOut(duration: 0.2)) { model.selectPomodoroPhase(phase) } } label: {
                         Label(phase.title, systemImage: phase.symbol)
                             .font(.system(size: 12, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 8)
-                            .background(model.pomodoroPhase == phase ? phaseColor : .white.opacity(0.07), in: Capsule())
-                            .foregroundStyle(model.pomodoroPhase == phase ? Color.black.opacity(0.82) : .primary)
+                            .background(model.pomodoroPhase == phase ? phaseColor : surface.opacity(0.07), in: Capsule())
+                            .foregroundStyle(model.pomodoroPhase == phase ? onAccent : .primary)
                     }
                     .buttonStyle(.plain).disabled(model.isPomodoroRunning && model.pomodoroPhase != phase)
                 }
@@ -60,7 +61,7 @@ struct PomodoroTimerView: View {
 
             ZStack {
                 Circle().fill(phaseColor.opacity(model.isPomodoroRunning ? 0.16 : 0.08)).blur(radius: 50).frame(width: ring + 10, height: ring + 10)
-                Circle().stroke(.white.opacity(0.07), lineWidth: 12)
+                Circle().stroke(surface.opacity(0.07), lineWidth: 12)
                 Circle().trim(from: 0, to: model.pomodoroProgress)
                     .stroke(phaseColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(-90))
@@ -80,7 +81,7 @@ struct PomodoroTimerView: View {
                         .font(.caption.weight(.bold)).tracking(1.6).textCase(.uppercase).foregroundStyle(.secondary)
                     HStack(spacing: 7) {
                         ForEach(0..<model.longBreakInterval, id: \.self) { index in
-                            Circle().fill(index < model.pomodoroCycleProgress ? phaseColor : .white.opacity(0.15)).frame(width: 8, height: 8)
+                            Circle().fill(index < model.pomodoroCycleProgress ? phaseColor : surface.opacity(0.15)).frame(width: 8, height: 8)
                         }
                     }
                     .padding(.top, 8)
@@ -99,7 +100,7 @@ struct PomodoroTimerView: View {
                     Label(model.isPomodoroRunning ? "Pause" : "Start", systemImage: model.isPomodoroRunning ? "pause.fill" : "play.fill")
                         .font(.system(size: 16, weight: .semibold))
                         .frame(width: 120, height: 46).background(phaseColor, in: Capsule())
-                        .foregroundStyle(Color.black.opacity(0.85))
+                        .foregroundStyle(onAccent)
                 }
                 .buttonStyle(.plain)
                 roundButton("forward.fill", "Skip phase") { model.skipPomodoro() }
@@ -107,7 +108,7 @@ struct PomodoroTimerView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.vertical, 22).padding(.horizontal, 20)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
+        .background(surface.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
     }
 
     private var activeTaskChip: some View {
@@ -122,7 +123,7 @@ struct PomodoroTimerView: View {
         }
         .font(.system(size: 13, weight: .medium))
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.white.opacity(0.06), in: Capsule()).frame(maxWidth: 380)
+        .background(surface.opacity(0.06), in: Capsule()).frame(maxWidth: 380)
         .accessibilityElement(children: .combine)
     }
 
@@ -145,7 +146,7 @@ struct PomodoroTimerView: View {
                     .accessibilityLabel("New task")
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+            .background(surface.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
 
             if model.pomodoroTasks.isEmpty {
                 Text("Break your work into tasks, estimate how many focus sessions each needs, and Brisa keeps count as you go.")
@@ -206,7 +207,7 @@ struct PomodoroTimerView: View {
         }
         .font(.callout)
         .padding(.horizontal, 12).padding(.vertical, 9)
-        .background(isActive ? phaseColor.opacity(0.14) : .white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+        .background(isActive ? phaseColor.opacity(0.14) : surface.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(isActive ? phaseColor.opacity(0.5) : .clear, lineWidth: 1))
     }
 
@@ -238,7 +239,7 @@ struct PomodoroTimerView: View {
     private func roundButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 15, weight: .medium))
-                .frame(width: 46, height: 46).background(.white.opacity(0.08), in: Circle())
+                .frame(width: 46, height: 46).background(surface.opacity(0.08), in: Circle())
         }
         .buttonStyle(.plain).help(label).accessibilityLabel(label)
     }
@@ -255,7 +256,7 @@ struct PomodoroTimerView: View {
             content()
         }
         .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
+        .background(surface.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var soundCard: some View {
@@ -276,7 +277,7 @@ struct PomodoroTimerView: View {
                             Image(systemName: playing ? "pause.fill" : "play.fill").font(.caption).foregroundStyle(playing ? phaseColor : .secondary)
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle())
-                        .background(playing ? phaseColor.opacity(0.14) : .white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                        .background(playing ? phaseColor.opacity(0.14) : surface.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(playing ? "Pause" : "Play") \(preset.name)")
