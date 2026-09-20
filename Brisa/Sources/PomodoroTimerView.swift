@@ -18,15 +18,19 @@ struct PomodoroTimerView: View {
     }
 
     var body: some View {
-        ScrollView {
+        // The timer stays put; only the sidebar on the right scrolls.
+        GeometryReader { geo in
             HStack(alignment: .top, spacing: 22) {
-                timerHero.frame(minWidth: 400)
-                VStack(spacing: 16) {
-                    tasksCard
-                    todayCard
-                    weekCard
-                    historyCard
-                    settingsCard
+                timerHero(ring: min(290, max(170, geo.size.height - 290)))
+                    .frame(minWidth: 400, maxHeight: geo.size.height - 4)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 16) {
+                        tasksCard
+                        todayCard
+                        weekCard
+                        historyCard
+                        settingsCard
+                    }
                 }
                 .frame(width: 340)
             }
@@ -39,7 +43,7 @@ struct PomodoroTimerView: View {
 
     // MARK: Hero
 
-    private var timerHero: some View {
+    private func timerHero(ring: CGFloat) -> some View {
         VStack(spacing: 22) {
             HStack(spacing: 6) {
                 ForEach(PomodoroPhase.allCases, id: \.self) { phase in
@@ -54,7 +58,7 @@ struct PomodoroTimerView: View {
             }
 
             ZStack {
-                Circle().fill(phaseColor.opacity(model.isPomodoroRunning ? 0.16 : 0.08)).blur(radius: 50).frame(width: 300, height: 300)
+                Circle().fill(phaseColor.opacity(model.isPomodoroRunning ? 0.16 : 0.08)).blur(radius: 50).frame(width: ring + 10, height: ring + 10)
                 Circle().stroke(.white.opacity(0.07), lineWidth: 12)
                 Circle().trim(from: 0, to: model.pomodoroProgress)
                     .stroke(phaseColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
@@ -66,7 +70,7 @@ struct PomodoroTimerView: View {
                         editingTime = true
                     } label: {
                         Text(model.pomodoroTimeText)
-                            .font(.system(size: 76, weight: .light, design: .rounded).monospacedDigit())
+                            .font(.system(size: ring * 0.262, weight: .light, design: .rounded).monospacedDigit())
                     }
                     .buttonStyle(.plain).help("Click to set the time")
                     .accessibilityLabel("Time remaining \(model.pomodoroTimeText). Click to change.")
@@ -83,7 +87,7 @@ struct PomodoroTimerView: View {
                     .accessibilityLabel("\(model.pomodoroCycleProgress) of \(model.longBreakInterval) sessions before long break")
                 }
             }
-            .frame(width: 290, height: 290)
+            .frame(width: ring, height: ring)
 
             activeTaskChip
 
@@ -101,7 +105,7 @@ struct PomodoroTimerView: View {
                 roundButton("plus", "Add 5 minutes") { model.extendPomodoro() }
             }
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.vertical, 22).padding(.horizontal, 20)
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 22))
     }
 
