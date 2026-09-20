@@ -77,7 +77,7 @@ final class BrisaPomodoroWidget: NSObject, ObservableObject, NSWindowDelegate {
     }
 }
 
-private struct PomodoroWidgetView: View {
+struct PomodoroWidgetView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var widget = BrisaPomodoroWidget.shared
     @ObservedObject private var themeStore = BrisaThemeStore.shared

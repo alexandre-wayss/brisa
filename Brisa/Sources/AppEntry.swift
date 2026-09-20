@@ -53,6 +53,10 @@ struct BrisaApp: App {
             .windowStyle(.hiddenTitleBar)
             .defaultSize(width: 1080, height: 770)
             .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("Settings…") { NotificationCenter.default.post(name: Notification.Name("BrisaShowSettings"), object: nil) }
+                        .keyboardShortcut(",")
+                }
                 CommandGroup(replacing: .appTermination) {
                     Button("Keep Running in Menu Bar") { BrisaWindowActions.moveToMenuBar() }
                         .keyboardShortcut("q")
@@ -286,55 +290,105 @@ private struct LiveBrisaPlayer: View {
 
 
 struct BrisaWidgetSettings: View {
+    private enum Tab: String, CaseIterable, Identifiable {
+        case appearance = "Appearance", widgets = "Widgets"
+        var id: String { rawValue }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: AppModel
     @ObservedObject private var themes = BrisaThemeStore.shared
+    @ObservedObject private var miniPlayer = BrisaDesktopPlayer.shared
     @ObservedObject private var pomodoroWidget = BrisaPomodoroWidget.shared
+    @State private var tab = Tab.appearance
 
     private var hasPendingPreview: Bool { themes.preview != nil && themes.preview != themes.selected }
 
     var body: some View {
-        ScrollView {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Text("Settings").font(.title2.bold())
                 Spacer()
                 Button("Done") { themes.cancelPreview(); dismiss() }
             }
-            appearance
-            Label("Widgets", systemImage: "square.grid.2x2").font(.headline)
-            Text("Your quiet space, right on your desktop.").foregroundStyle(.secondary)
-            LiveBrisaPlayer(model: model).allowsHitTesting(false)
-                .overlay(alignment: .bottomTrailing) {
-                    Button {
-                        themes.cancelPreview()
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            BrisaDesktopPlayer.shared.addToDesktop()
-                        }
-                    } label: {
-                        Image(systemName: "plus").font(.title2.weight(.medium))
-                            .frame(width: 48, height: 48).background(.regularMaterial, in: Circle())
-                            .overlay(Circle().strokeBorder(surface.opacity(0.3)))
-                    }.buttonStyle(.plain).help("Add to desktop").accessibilityLabel("Add widget to desktop")
-                        .offset(x: 16, y: 16)
+            Picker("", selection: $tab) {
+                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented).labelsHidden()
+            ScrollView {
+                switch tab {
+                case .appearance: appearance
+                case .widgets: widgets
                 }
-            Text("Drag anywhere except the volume slider to position it. Pin and lock controls live on the widget.")
-                .font(.caption).foregroundStyle(.secondary).frame(width: 380, alignment: .leading)
-            Divider()
-            Toggle(isOn: $pomodoroWidget.enabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Label("Pomodoro widget", systemImage: "timer").font(.headline)
-                    Text("A small timer on your desktop with start, pause and skip.").font(.caption).foregroundStyle(.secondary)
-                }
-            }.toggleStyle(.switch)
-        }.padding(32)
+            }
+            .id(tab)
         }
+        .padding(32)
         .frame(width: 470, height: 720)
         .background(themes.current.background[1].opacity(0.001))
         .preferredColorScheme(themes.current.scheme)
         .tint(themes.current.accent)
         .onDisappear { themes.cancelPreview() }
+    }
+
+    // MARK: Widgets
+
+    private var widgets: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Add Brisa to your desktop. Drag a widget anywhere to place it; pin and lock controls live on each widget.")
+                .font(.caption).foregroundStyle(.secondary)
+            widgetCard(title: "Mini player", symbol: "waveform", detail: "Play, pause and switch sounds without opening Brisa.",
+                       isOn: miniPlayer.enabled, previewSize: CGSize(width: 380, height: 240),
+                       add: {
+                           themes.cancelPreview()
+                           dismiss()
+                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { BrisaDesktopPlayer.shared.addToDesktop() }
+                       },
+                       remove: { miniPlayer.hide() }) {
+                LiveBrisaPlayer(model: model)
+            }
+            widgetCard(title: "Pomodoro", symbol: "timer", detail: "A focus timer with start, pause and skip, and your current task.",
+                       isOn: pomodoroWidget.enabled, previewSize: CGSize(width: 240, height: 284),
+                       add: { pomodoroWidget.enabled = true },
+                       remove: { pomodoroWidget.hide() }) {
+                PomodoroWidgetView(model: model)
+            }
+        }
+    }
+
+    private func widgetCard<Preview: View>(title: String, symbol: String, detail: String, isOn: Bool, previewSize: CGSize,
+                                           add: @escaping () -> Void, remove: @escaping () -> Void,
+                                           @ViewBuilder preview: () -> Preview) -> some View {
+        let scale = min(1, 0.8 * 406 / previewSize.width, 250 / previewSize.height)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(title, systemImage: symbol).font(.headline)
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isOn {
+                    Label("On desktop", systemImage: "checkmark.circle.fill").font(.caption.weight(.medium))
+                        .foregroundStyle(themes.current.accent)
+                }
+            }
+            preview()
+                .allowsHitTesting(false).accessibilityHidden(true)
+                .scaleEffect(scale)
+                .frame(width: previewSize.width * scale, height: previewSize.height * scale)
+                .frame(maxWidth: .infinity)
+            HStack {
+                Spacer()
+                if isOn {
+                    Button(role: .destructive, action: remove) { Label("Remove from desktop", systemImage: "minus.circle") }
+                } else {
+                    Button(action: add) { Label("Add to desktop", systemImage: "plus.circle.fill") }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .padding(16)
+        .background(surface.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var appearance: some View {

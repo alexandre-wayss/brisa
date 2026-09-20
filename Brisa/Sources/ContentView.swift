@@ -89,6 +89,7 @@ struct ContentView: View {
  }.frame(minWidth:920,minHeight:640).preferredColorScheme(themeStore.current.scheme).tint(accent)
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
+ .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowSettings"))){_ in showSettings=true}
  .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
  .fileImporter(isPresented:Binding(get:{relinkingSound != nil},set:{if !$0 {relinkingSound=nil}}),allowedContentTypes:[.wav,.aiff,.mp3],allowsMultipleSelection:false){result in
   guard let sound=relinkingSound else{return}; defer{relinkingSound=nil}
