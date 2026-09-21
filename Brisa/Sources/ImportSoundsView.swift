@@ -26,8 +26,8 @@ struct ImportSoundsView: View {
             }.buttonStyle(.borderedProminent)
             Divider()
             Text("External audio URL").font(.headline)
-            TextField("https://example.com/sound.mp3", text: $urlText).textFieldStyle(.roundedBorder)
-            Text("Direct HTTPS links to WAV, AIFF, and MP3 are downloaded once after type and size checks. YouTube links are saved as attributed sources, not extracted or played.")
+            TextField("https://example.com/sound.mp3 or a YouTube link", text: $urlText).textFieldStyle(.roundedBorder)
+            Text("Direct HTTPS links to WAV, AIFF, and MP3 are downloaded once after type and size checks. YouTube links become video buttons that play in Brisa’s video window through YouTube’s official player. Brisa never downloads or extracts YouTube audio.")
                 .font(.caption).foregroundStyle(.secondary)
             Group {
                 TextField("Attribution (optional)", text: $attribution)

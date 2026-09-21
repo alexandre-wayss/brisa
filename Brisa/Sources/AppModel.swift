@@ -142,6 +142,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in self?.recoverAudioEngine() }
         }
         integration = SystemIntegration(model: self)
+        YouTubeVideoPlayer.shared.onTitle = { [weak self] id, title in self?.updateVideoTitle(soundID: id, title: title) }
         synchronizeAudio()
     }
 
@@ -191,7 +192,9 @@ final class AppModel: ObservableObject {
     func persistMixes() { if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") } }
     func persistImportedSounds() { if let data = try? JSONEncoder().encode(importedSounds) { UserDefaults.standard.set(data, forKey: "importedSounds") } }
 
-    var availableLibrary: [Sound] { library + importedSounds.map(\.sound) }
+    /// Sounds that can go into a mix. YouTube videos are played by the video window, never mixed.
+    var availableLibrary: [Sound] { library + importedSounds.filter { $0.source != .youtube }.map(\.sound) }
+    var youtubeVideos: [ImportedSound] { importedSounds.filter { $0.source == .youtube && $0.youtubeID != nil }.sorted { $0.importedAt > $1.importedAt } }
 
     func importLocalFile(_ url: URL, attribution: String = "", license: String = "") throws {
         guard ImportedSoundStore.isSupported(url) else { throw AudioImportError.unsupportedFormat }
@@ -211,7 +214,7 @@ final class AppModel: ObservableObject {
     func importExternalURL(_ rawURL: String, attribution: String = "", license: String = "") async throws {
         guard let url = URL(string: rawURL), url.scheme?.lowercased() == "https" else { throw AudioImportError.invalidURL }
         if ImportedSoundStore.isYouTube(url) {
-            importYouTubeLink(url, attribution: attribution, license: license)
+            try await importYouTubeLink(url, attribution: attribution, license: license)
             return
         }
         let (temporaryURL, response) = try await URLSession.shared.download(from: url)
@@ -233,15 +236,28 @@ final class AppModel: ObservableObject {
         persistImportedSounds()
     }
 
-    private func importYouTubeLink(_ url: URL, attribution: String, license: String) {
-        let id = "imported-\(UUID().uuidString)"
-        importedSounds.append(ImportedSound(id: id, name: "YouTube source", source: .youtube, originalURL: url.absoluteString,
-                                            storedFile: nil, bookmark: nil, attribution: attribution, license: license, importedAt: .now,
-                                            unavailableReason: "YouTube link saved — import an authorized audio file to play it."))
+    private func importYouTubeLink(_ url: URL, attribution: String, license: String) async throws {
+        guard let videoID = YouTubeLink.videoID(from: url.absoluteString) else { throw AudioImportError.notAVideo }
+        guard !importedSounds.contains(where: { $0.source == .youtube && $0.youtubeID == videoID }) else { throw AudioImportError.duplicateVideo }
+        let metadata = await YouTubeLink.fetchMetadata(for: videoID)   // nil offline or for private videos: the card still works
+        importedSounds.append(ImportedSound(
+            id: "imported-\(UUID().uuidString)", name: metadata?.title ?? "YouTube video", source: .youtube,
+            originalURL: YouTubeLink.watchURL(videoID).absoluteString, storedFile: nil, bookmark: nil,
+            attribution: attribution.isEmpty ? (metadata?.channel ?? "") : attribution, license: license, importedAt: .now,
+            unavailableReason: nil, videoID: videoID, thumbnailURL: metadata?.thumbnail))
+        persistImportedSounds()
+    }
+
+    /// The player reports the real title; use it for links saved before titles were fetched.
+    func updateVideoTitle(soundID: String, title: String) {
+        guard let index = importedSounds.firstIndex(where: { $0.id == soundID }),
+              ["YouTube video", "YouTube source"].contains(importedSounds[index].name) else { return }
+        importedSounds[index].name = title
         persistImportedSounds()
     }
 
     func removeImportedSound(_ sound: ImportedSound) {
+        if sound.source == .youtube, YouTubeVideoPlayer.shared.isCurrent(sound) { YouTubeVideoPlayer.shared.stop() }
         levels.removeValue(forKey: sound.id)
         audio.discardBuffer(for: sound.id)
         if let path = sound.storedFile { try? FileManager.default.removeItem(atPath: path) }

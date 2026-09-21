@@ -14,7 +14,12 @@ struct ContentView: View {
  @State private var showImport=false
  @State private var showPomodoro=false
  @State private var relinkingSound: ImportedSound?
+ @ObservedObject private var videoPlayer=YouTubeVideoPlayer.shared
  let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","Imported","My mixes"]
+ var videos:[ImportedSound] {
+  guard category=="All sounds" || category=="Imported" else {return []}
+  return model.youtubeVideos.filter{search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.attribution.localizedCaseInsensitiveContains(search)}
+ }
  var filtered:[Sound] {model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
  func navTab(_ title:String,_ symbol:String,selected:Bool,action:@escaping()->Void)->some View {
   Button(action:action){Label(title,systemImage:symbol).font(.system(size:13,weight:.medium).monospacedDigit()).padding(.horizontal,16).padding(.vertical,7).background(selected ? accent:.clear,in:Capsule()).foregroundStyle(selected ? onAccent:.primary).contentShape(Capsule())}.buttonStyle(.plain)
@@ -78,8 +83,14 @@ struct ContentView: View {
        }.padding(20).background(surface.opacity(0.04),in:RoundedRectangle(cornerRadius:14))
       }
      } else {
-      if filtered.isEmpty {empty("No sounds here",category=="Favorites" ? "Tap the heart to save your favorite sounds.":"Try a different search.")}
+      if filtered.isEmpty && videos.isEmpty {empty("No sounds here",category=="Favorites" ? "Tap the heart to save your favorite sounds.":"Try a different search.")}
       LazyVGrid(columns:[GridItem(.adaptive(minimum:210),spacing:14)],spacing:14){ForEach(filtered){sound in card(sound)}}
+      if !videos.isEmpty {
+       VStack(alignment:.leading,spacing:12){
+        HStack(spacing:8){Image(systemName:"play.rectangle.fill").foregroundStyle(.red);Text("Videos").font(.system(size:18,weight:.semibold,design:.rounded))}
+        LazyVGrid(columns:[GridItem(.adaptive(minimum:250),spacing:14)],spacing:14){ForEach(videos){video in YouTubeVideoCard(video:video,player:videoPlayer){model.removeImportedSound(video)}}}
+       }.padding(.top,filtered.isEmpty ? 0 : 8)
+      }
      }
     }.padding(.horizontal,34).padding(.bottom,18)
    }
