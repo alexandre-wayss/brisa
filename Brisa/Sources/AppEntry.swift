@@ -243,7 +243,12 @@ private struct LiveBrisaPlayer: View {
                         Image(systemName: "chevron.down").font(.caption)
                     }
                 }.menuStyle(.borderlessButton).help("Choose a sound or saved mix")
-                Text("Your quiet space").font(.caption).foregroundStyle(.secondary)
+                if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
+                    Label("\(model.pomodoroPhase.title) · \(model.pomodoroTimeText)", systemImage: model.isPomodoroRunning ? "timer" : "pause.fill")
+                        .font(.caption.monospacedDigit()).foregroundStyle(mint)
+                } else {
+                    Text("Your quiet space").font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 HStack(spacing: 12) {
                     Button { model.toggleMute() } label: {

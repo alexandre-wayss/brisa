@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import AVFoundation
 import Combine
 import UserNotifications
@@ -101,6 +102,8 @@ final class AppModel: ObservableObject {
     @Published var autoStartPomodoro = false { didSet { persistPomodoro() } }
     @Published var pomodoroDailyGoal = 8 { didSet { let valid = min(max(pomodoroDailyGoal, 1), 24); if valid != pomodoroDailyGoal { pomodoroDailyGoal = valid } else { persistPomodoro() } } }
     @Published var pomodoroHistory: [PomodoroSession] = [] { didSet { persistPomodoroHistory() } }
+    @Published var pomodoroConfetti = true { didSet { persistPomodoro() } }
+    @Published var pomodoroChime = true { didSet { persistPomodoro() } }
     @Published var changesSoundscapeWithPomodoro = false { didSet { persistPomodoro() } }
     @Published var pomodoroSoundIDs: [String: String] = [:] { didSet { persistPomodoro() } }
     @Published var pomodoroSoundVolume = 0.05 { didSet { let valid = min(max(pomodoroSoundVolume, 0), 1); if valid != pomodoroSoundVolume { pomodoroSoundVolume = valid } else { persistPomodoro() } } }
@@ -350,6 +353,30 @@ final class AppModel: ObservableObject {
         if activePomodoroTaskID == id { activePomodoroTaskID = pomodoroTasks.first { !$0.isDone }?.id }
     }
 
+    func renamePomodoroTask(_ id: UUID, to title: String) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, let index = pomodoroTasks.firstIndex(where: { $0.id == id }) else { return }
+        pomodoroTasks[index].title = title
+    }
+
+    /// Moves an open task up (-1) or down (+1) among the open tasks.
+    func movePomodoroTask(_ id: UUID, by offset: Int) {
+        let open = pomodoroTasks.indices.filter { !pomodoroTasks[$0].isDone }
+        guard let position = open.firstIndex(where: { pomodoroTasks[$0].id == id }) else { return }
+        let target = position + offset
+        guard open.indices.contains(target) else { return }
+        pomodoroTasks.swapAt(open[position], open[target])
+    }
+
+    /// Drag and drop: puts `id` right before `targetID`.
+    func movePomodoroTask(_ id: UUID, before targetID: UUID) {
+        guard id != targetID, let from = pomodoroTasks.firstIndex(where: { $0.id == id }),
+              pomodoroTasks.contains(where: { $0.id == targetID }) else { return }
+        let moved = pomodoroTasks.remove(at: from)
+        let to = pomodoroTasks.firstIndex(where: { $0.id == targetID }) ?? pomodoroTasks.endIndex
+        pomodoroTasks.insert(moved, at: to)
+    }
+
     func clearCompletedPomodoroTasks() {
         pomodoroTasks.removeAll { $0.isDone }
     }
@@ -523,7 +550,10 @@ final class AppModel: ObservableObject {
         pomodoroEndDate = nil
         isPomodoroRunning = false
         applyPomodoroSoundscape()
-        if completed { notifyPomodoroTransition(from: finished, to: pomodoroPhase) }
+        if completed {
+            notifyPomodoroTransition(from: finished, to: pomodoroPhase)
+            if !isRestoringPomodoro { celebratePhaseEnd(finished) }
+        }
         if completed ? autoStartPomodoro : wasRunning { startPomodoro() }
         persistPomodoro()
     }
@@ -546,6 +576,8 @@ final class AppModel: ObservableObject {
         }
         activePomodoroTaskID = defaults.string(forKey: "pomodoro.activeTask").flatMap(UUID.init(uuidString:)).flatMap { id in pomodoroTasks.contains { $0.id == id && !$0.isDone } ? id : nil }
         autoStartPomodoro = defaults.bool(forKey: "pomodoro.autoStart")
+        pomodoroConfetti = defaults.object(forKey: "pomodoro.confetti") as? Bool ?? true
+        pomodoroChime = defaults.object(forKey: "pomodoro.chime") as? Bool ?? true
         pomodoroDailyGoal = defaults.object(forKey: "pomodoro.dailyGoal") as? Int ?? 8
         if let data = defaults.data(forKey: "pomodoro.history"),
            let saved = try? JSONDecoder().decode([PomodoroSession].self, from: data) {
@@ -585,6 +617,8 @@ final class AppModel: ObservableObject {
         defaults.set(pomodoroTotalSeconds, forKey: "pomodoro.total")
         defaults.set(activePomodoroTaskID?.uuidString, forKey: "pomodoro.activeTask")
         defaults.set(autoStartPomodoro, forKey: "pomodoro.autoStart")
+        defaults.set(pomodoroConfetti, forKey: "pomodoro.confetti")
+        defaults.set(pomodoroChime, forKey: "pomodoro.chime")
         defaults.set(pomodoroDailyGoal, forKey: "pomodoro.dailyGoal")
         defaults.set(pomodoroEndDate?.timeIntervalSince1970, forKey: "pomodoro.end")
     }
@@ -599,11 +633,19 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(data, forKey: "pomodoro.history")
     }
 
+    func celebratePhaseEnd(_ finished: PomodoroPhase) {
+        if pomodoroChime, let sound = NSSound(named: finished == .work ? "Hero" : "Ping") {
+            sound.volume = 0.6
+            sound.play()
+        }
+        if pomodoroConfetti { PomodoroCelebration.shared.play() }
+    }
+
     private func notifyPomodoroTransition(from finished: PomodoroPhase, to next: PomodoroPhase) {
         let content = UNMutableNotificationContent()
         content.title = finished == .work ? "Focus session complete" : "Break complete"
         content.body = next == .work ? "Time to focus again." : "Take a \(next.title.lowercased())."
-        content.sound = .default
+        content.sound = nil   // the chime is played by Brisa itself so it can be turned off
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }

@@ -9,6 +9,9 @@ struct PomodoroTimerView: View {
     @State private var showSettings = false
     @State private var editingTime = false
     @State private var newTask = ""
+    @State private var renamingTaskID: UUID?
+    @State private var renameText = ""
+    @FocusState private var renameFocused: Bool
     @State private var minutesInput = ""
 
     private var phaseColor: Color { themeStore.current.color(for: model.pomodoroPhase) }
@@ -185,13 +188,22 @@ struct PomodoroTimerView: View {
             }
             .buttonStyle(.plain).accessibilityLabel(task.isDone ? "Mark \(task.title) as not done" : "Mark \(task.title) as done")
 
-            Button { model.selectPomodoroTask(isActive ? nil : task.id) } label: {
-                Text(task.title).strikethrough(task.isDone).lineLimit(1)
-                    .foregroundStyle(task.isDone ? .secondary : .primary)
-                    .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            if renamingTaskID == task.id {
+                TextField("Task name", text: $renameText).textFieldStyle(.plain)
+                    .focused($renameFocused)
+                    .onSubmit { commitRename(task.id) }
+                    .onExitCommand { renamingTaskID = nil }
+                    .accessibilityLabel("Rename \(task.title)")
+            } else {
+                Button { model.selectPomodoroTask(isActive ? nil : task.id) } label: {
+                    Text(task.title).strikethrough(task.isDone).lineLimit(1)
+                        .foregroundStyle(task.isDone ? .secondary : .primary)
+                        .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).disabled(task.isDone)
+                .simultaneousGesture(TapGesture(count: 2).onEnded { if !task.isDone { beginRename(task) } })
+                .help(isActive ? "Stop working on this task" : "Work on this task · double-click to rename")
             }
-            .buttonStyle(.plain).disabled(task.isDone)
-            .help(isActive ? "Stop working on this task" : "Work on this task")
 
             if isActive { Text("Now").font(.caption2.weight(.bold)).foregroundStyle(phaseColor) }
 
@@ -215,6 +227,32 @@ struct PomodoroTimerView: View {
         .padding(.horizontal, 12).padding(.vertical, 9)
         .background(isActive ? phaseColor.opacity(0.14) : surface.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(isActive ? phaseColor.opacity(0.5) : .clear, lineWidth: 1))
+        .contextMenu {
+            if !task.isDone {
+                Button { beginRename(task) } label: { Label("Rename", systemImage: "pencil") }
+                Button { withAnimation { model.movePomodoroTask(task.id, by: -1) } } label: { Label("Move up", systemImage: "arrow.up") }
+                Button { withAnimation { model.movePomodoroTask(task.id, by: 1) } } label: { Label("Move down", systemImage: "arrow.down") }
+                Divider()
+            }
+            Button(role: .destructive) { withAnimation { model.removePomodoroTask(task.id) } } label: { Label("Delete", systemImage: "trash") }
+        }
+        .draggable(task.id.uuidString)
+        .dropDestination(for: String.self) { items, _ in
+            guard let raw = items.first, let dragged = UUID(uuidString: raw) else { return false }
+            withAnimation { model.movePomodoroTask(dragged, before: task.id) }
+            return true
+        }
+    }
+
+    private func beginRename(_ task: PomodoroTask) {
+        renameText = task.title
+        renamingTaskID = task.id
+        renameFocused = true
+    }
+
+    private func commitRename(_ id: UUID) {
+        model.renamePomodoroTask(id, to: renameText)
+        renamingTaskID = nil
     }
 
     private var timeEditor: some View {
@@ -381,6 +419,9 @@ struct PomodoroTimerView: View {
                     Stepper("Long break every \(model.longBreakInterval) sessions", value: $model.longBreakInterval, in: 1...12)
                     Stepper("Daily goal: \(model.pomodoroDailyGoal) sessions", value: $model.pomodoroDailyGoal, in: 1...24)
                     Toggle("Auto-start the next phase", isOn: $model.autoStartPomodoro)
+                    Toggle("Confetti when a phase ends", isOn: $model.pomodoroConfetti)
+                    Toggle("Play a chime when a phase ends", isOn: $model.pomodoroChime)
+                    Button { model.celebratePhaseEnd(.work) } label: { Label("Preview celebration", systemImage: "party.popper") }
                     Divider().opacity(0.4)
                     Toggle("Change soundscape per phase", isOn: $model.changesSoundscapeWithPomodoro)
                     if model.changesSoundscapeWithPomodoro {
