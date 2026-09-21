@@ -26,6 +26,12 @@ enum PomodoroPhase: String, CaseIterable, Codable {
     }
 }
 
+/// How often and how recently a sound was started by the user.
+struct SoundUsage: Codable, Equatable {
+    var count: Int
+    var last: Date
+}
+
 struct PomodoroSession: Codable, Identifiable, Equatable {
     var id = UUID()
     var end: Date
@@ -112,6 +118,14 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(pausesOnSleep, forKey: "pausesOnSleep") }
     }
 
+    @Published var crossfadeEnabled = (UserDefaults.standard.object(forKey: "crossfade") as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(crossfadeEnabled, forKey: "crossfade"); audio.crossfadeEnabled = crossfadeEnabled }
+    }
+    @Published private(set) var soundUsage: [String: SoundUsage] = [:]
+    /// A mix that arrived from a file or link and is waiting for the user to confirm.
+    @Published var pendingSharedMix: SharedMix?
+    private var isAutomaticChange = false
+
     private var volumeBeforeMute = 0.65
     private var resumeAfterWake = false
     private var integration: SystemIntegration?
@@ -131,6 +145,11 @@ final class AppModel: ObservableObject {
            let savedSounds = try? JSONDecoder().decode([ImportedSound].self, from: data) {
             importedSounds = savedSounds
         }
+        if let data = UserDefaults.standard.data(forKey: "soundUsage"),
+           let saved = try? JSONDecoder().decode([String: SoundUsage].self, from: data) {
+            soundUsage = saved
+        }
+        audio.crossfadeEnabled = crossfadeEnabled
         audio.importedURL = { [weak self] id in self?.importedSounds.first(where: { $0.id == id }).flatMap { $0.storedFile }.map(URL.init(fileURLWithPath:)) }
         volumeBeforeMute = masterVolume > 0 ? masterVolume : 0.65
         restorePomodoro()
@@ -169,9 +188,36 @@ final class AppModel: ObservableObject {
 
     func toggle(_ soundID: String) {
         if levels[soundID] != nil { levels.removeValue(forKey: soundID) }
-        else { levels[soundID] = 0.05; isPlaying = true }
+        else { levels[soundID] = 0.05; isPlaying = true; recordUsage([soundID]) }
         if levels.isEmpty { isPlaying = false }
         synchronizeAudio()
+    }
+
+    /// Counts a sound each time you start it yourself; automatic changes (Pomodoro phases) don't count.
+    func recordUsage(_ ids: some Sequence<String>) {
+        guard !isAutomaticChange else { return }
+        let now = Date()
+        for id in ids {
+            var entry = soundUsage[id] ?? SoundUsage(count: 0, last: now)
+            entry.count += 1
+            entry.last = now
+            soundUsage[id] = entry
+        }
+        if let data = try? JSONEncoder().encode(soundUsage) { UserDefaults.standard.set(data, forKey: "soundUsage") }
+    }
+
+    /// Sounds you played most recently, newest first.
+    var recentSounds: [Sound] {
+        let known = Dictionary(uniqueKeysWithValues: availableLibrary.map { ($0.id, $0) })
+        return soundUsage.sorted { $0.value.last > $1.value.last }.compactMap { known[$0.key] }
+    }
+
+    /// Sounds you play most often; ties go to the more recent one. Sounds played once are not "most used" yet.
+    var mostUsedSounds: [Sound] {
+        let known = Dictionary(uniqueKeysWithValues: availableLibrary.map { ($0.id, $0) })
+        return soundUsage.filter { $0.value.count >= 2 }
+            .sorted { ($0.value.count, $0.value.last) > ($1.value.count, $1.value.last) }
+            .compactMap { known[$0.key] }
     }
 
     func togglePlayback() {
@@ -186,8 +232,8 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(Array(favorites), forKey: "favorites")
     }
 
-    func applyMix(_ levels: [String: Double]) { self.levels = levels; isPlaying = true; synchronizeAudio() }
-    func replaceWith(_ sound: Sound) { levels = [sound.id: 0.05]; isPlaying = true; synchronizeAudio() }
+    func applyMix(_ levels: [String: Double]) { self.levels = levels; isPlaying = true; recordUsage(levels.keys); synchronizeAudio() }
+    func replaceWith(_ sound: Sound) { levels = [sound.id: 0.05]; isPlaying = true; recordUsage([sound.id]); synchronizeAudio() }
     func saveMix(named name: String) { mixes.append(Mix(name: name, levels: levels)); persistMixes() }
     func persistMixes() { if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") } }
     func persistImportedSounds() { if let data = try? JSONEncoder().encode(importedSounds) { UserDefaults.standard.set(data, forKey: "importedSounds") } }
@@ -496,6 +542,8 @@ final class AppModel: ObservableObject {
     /// a single sound (its id), or — when empty — the first suggested preset for the phase.
     func applyPomodoroSoundscape() {
         guard changesSoundscapeWithPomodoro else { return }
+        isAutomaticChange = true   // phase changes should not inflate "Most used"
+        defer { isAutomaticChange = false }
         let choice = pomodoroSoundIDs[pomodoroPhase.rawValue] ?? ""
         if choice.hasPrefix("mix:"), let mix = mixes.first(where: { "mix:\($0.id.uuidString)" == choice }) {
             applyMix(mix.levels)

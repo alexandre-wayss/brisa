@@ -25,6 +25,21 @@ final class BrisaAppDelegate: NSObject, NSApplicationDelegate {
             if let playbackAction { playbackAction() }
             else { pendingPlaybackActions += 1 }
         }
+        // A shared mix, from a `.brisamix` file or a `brisa://mix?d=…` link. It is validated, then the user confirms.
+        for url in urls {
+            let shared: SharedMix?
+            if url.isFileURL, url.pathExtension.lowercased() == MixSharing.fileExtension {
+                shared = (try? Data(contentsOf: url)).flatMap { MixSharing.decode(data: $0) }
+            } else if url.scheme == "brisa", url.host == "mix" {
+                shared = MixSharing.decode(link: url)
+            } else { continue }
+            Task { @MainActor in
+                BrisaWindowActions.showInDock()
+                NotificationCenter.default.post(name: Notification.Name("BrisaShowWindow"), object: nil)
+                if let shared { AppModel.shared.pendingSharedMix = shared }
+                else { NSSound.beep() }
+            }
+        }
     }
 
     func connectPlayback(_ action: @escaping () -> Void) {
@@ -305,6 +320,7 @@ struct BrisaWidgetSettings: View {
     @ObservedObject private var themes = BrisaThemeStore.shared
     @ObservedObject private var miniPlayer = BrisaDesktopPlayer.shared
     @ObservedObject private var pomodoroWidget = BrisaPomodoroWidget.shared
+    @ObservedObject private var videoPlayer = YouTubeVideoPlayer.shared
     @State private var tab = Tab.appearance
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchMessage: String?
@@ -353,6 +369,14 @@ struct BrisaWidgetSettings: View {
             settingRow(symbol: "moon.zzz", title: "Pause sounds when the Mac sleeps",
                        detail: "Playback stops when the lid closes and picks up again on wake, on whichever speakers or headphones are connected.") {
                 Toggle("", isOn: $model.pausesOnSleep).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "waveform.path", title: "Crossfade between mixes",
+                       detail: "Sounds fade in and out when you switch mixes instead of cutting. Turn off for instant changes.") {
+                Toggle("", isOn: $model.crossfadeEnabled).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "play.rectangle", title: "Small video window",
+                       detail: "YouTube videos play in a compact window that stays visible but out of the way. YouTube requires the video to stay on screen while it plays.") {
+                Toggle("", isOn: $videoPlayer.compact).labelsHidden().toggleStyle(.switch)
             }
             settingRow(symbol: "keyboard", title: "Media keys and Control Center",
                        detail: "Play and pause from your keyboard, AirPods or the Now Playing menu. Always on.") {

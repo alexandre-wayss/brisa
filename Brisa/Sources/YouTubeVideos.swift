@@ -82,6 +82,26 @@ final class YouTubeVideoPlayer: NSObject, ObservableObject, WKScriptMessageHandl
     var forceMuted = false
     var panelOrigin: NSPoint?
 
+    /// YouTube requires the player to stay visible and at least 200×200 points. Compact is the smallest 16:9 size
+    /// that meets that, so the video is out of the way but never hidden.
+    static let normalSize = NSSize(width: 480, height: 270)
+    static let compactSize = NSSize(width: 356, height: 200)
+
+    @Published var compact = UserDefaults.standard.bool(forKey: "video.compact") {
+        didSet {
+            UserDefaults.standard.set(compact, forKey: "video.compact")
+            guard let panel else { return }
+            let size = compact ? Self.compactSize : Self.normalSize
+            let frame = panel.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+            // Keep the top-right corner where it is while resizing.
+            var next = panel.frame
+            next.origin.y += next.height - frame.height
+            next.origin.x += next.width - frame.width
+            next.size = frame.size
+            panel.setFrame(next, display: true, animate: true)
+        }
+    }
+
     private var panel: NSPanel?
     private var webView: WKWebView?
     private var currentSoundID: String?
@@ -142,7 +162,8 @@ final class YouTubeVideoPlayer: NSObject, ObservableObject, WKScriptMessageHandl
 
     private func existingOrNewPanel() -> NSPanel {
         if let panel { return panel }
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 236),
+        let size = compact ? Self.compactSize : Self.normalSize
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
                             styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
                             backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
@@ -150,14 +171,14 @@ final class YouTubeVideoPlayer: NSObject, ObservableObject, WKScriptMessageHandl
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentAspectRatio = NSSize(width: 16, height: 9)
-        panel.minSize = NSSize(width: 320, height: 180)
+        panel.contentMinSize = Self.compactSize
         panel.backgroundColor = .black
         panel.delegate = self
         if let origin = panelOrigin {
             panel.setFrameOrigin(origin)
         } else if let screen = NSScreen.main {
             let area = screen.visibleFrame
-            panel.setFrameOrigin(NSPoint(x: area.maxX - 420 - 28, y: area.maxY - 236 - 60))
+            panel.setFrameOrigin(NSPoint(x: area.maxX - panel.frame.width - 28, y: area.maxY - panel.frame.height - 60))
         }
         self.panel = panel
         return panel

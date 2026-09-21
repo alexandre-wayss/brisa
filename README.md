@@ -11,7 +11,8 @@ Brisa is a native macOS ambient-sound app for focus, rest, and sleep. Build a so
 ## Features
 
 - Ambient library: noise, water, nature, and indoor environments.
-- Saved, editable mixes; favorites; timer; and individual sound levels.
+- Saved, editable mixes; favorites; timer; and individual sound levels. **Recent** and **Most used** shelves remember what you actually play, and sounds crossfade when you switch mixes.
+- Share a mix as a `.brisamix` file or a `brisa://mix?d=…` link (Share button on any saved mix, **Import mix** on My mixes). Only Brisa's built-in sounds travel; anything received is validated and confirmed before it is added.
 - Glass-style player and a compact menu-bar player with mute, volume, timer, and quick sound switching.
 - global keyboard and mouse sounds using recorded samples.
 - A first-run welcome flow and local, persistent preferences.

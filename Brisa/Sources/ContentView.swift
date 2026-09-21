@@ -1,4 +1,6 @@
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 struct ContentView: View {
  @ObservedObject private var themeStore=BrisaThemeStore.shared
  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -15,12 +17,43 @@ struct ContentView: View {
  @State private var showPomodoro=false
  @State private var relinkingSound: ImportedSound?
  @ObservedObject private var videoPlayer=YouTubeVideoPlayer.shared
- let categories=["All sounds","Favorites","Noise","Water","Nature","Spaces","Imported","My mixes"]
+ @State private var showMixFileImporter=false
+ @State private var notice:String?
+ var mixFileType:UTType { UTType(filenameExtension:MixSharing.fileExtension,conformingTo:.json) ?? .json }
+ func flash(_ text:String){notice=text;DispatchQueue.main.asyncAfter(deadline:.now()+3.5){if notice==text{notice=nil}}}
+ func copyMixLink(_ mix:Mix){
+  guard let shared=MixSharing.shared(from:mix),let url=MixSharing.link(shared.mix) else {flash("This mix only has imported sounds, which can't be shared.");return}
+  NSPasteboard.general.clearContents();NSPasteboard.general.setString(url.absoluteString,forType:.string)
+  flash(shared.omitted>0 ? "Link copied. \(shared.omitted) imported sound\(shared.omitted==1 ? "":"s") left out.":"Link copied. Anyone with Brisa can open it.")
+ }
+ func exportMixFile(_ mix:Mix){
+  guard let shared=MixSharing.shared(from:mix),let data=MixSharing.fileData(shared.mix) else {flash("This mix only has imported sounds, which can't be shared.");return}
+  let panel=NSSavePanel();panel.nameFieldStringValue="\(shared.mix.name).\(MixSharing.fileExtension)";panel.allowedContentTypes=[mixFileType]
+  guard panel.runModal() == .OK,let url=panel.url else {return}
+  do{try data.write(to:url,options:.atomic);flash(shared.omitted>0 ? "Exported. \(shared.omitted) imported sound\(shared.omitted==1 ? "":"s") left out.":"Mix exported.")}catch{flash("Couldn't save the file.")}
+ }
+ func pasteMixLink(){
+  guard let text=NSPasteboard.general.string(forType:.string)?.trimmingCharacters(in:.whitespacesAndNewlines),let url=URL(string:text),let shared=MixSharing.decode(link:url) else {flash("There's no Brisa mix link on the clipboard.");return}
+  model.pendingSharedMix=shared
+ }
+ func importMixFile(_ result:Result<[URL],Error>){
+  guard let url=try? result.get().first else {return}
+  let accessed=url.startAccessingSecurityScopedResource();defer{if accessed{url.stopAccessingSecurityScopedResource()}}
+  guard let data=try? Data(contentsOf:url),let shared=MixSharing.decode(data:data) else {flash("That file isn't a valid Brisa mix.");return}
+  model.pendingSharedMix=shared
+ }
+ let categories=["All sounds","Favorites","Recent","Most used","Noise","Water","Nature","Spaces","Imported","My mixes"]
  var videos:[ImportedSound] {
   guard category=="All sounds" || category=="Imported" else {return []}
   return model.youtubeVideos.filter{search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.attribution.localizedCaseInsensitiveContains(search)}
  }
- var filtered:[Sound] {model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search))}}
+ var filtered:[Sound] {
+  let matchesSearch:(Sound)->Bool={self.search.isEmpty || $0.name.localizedCaseInsensitiveContains(self.search)}
+  // Recent and Most used keep their own order instead of the library order.
+  if category=="Recent" {return model.recentSounds.prefix(16).filter(matchesSearch)}
+  if category=="Most used" {return model.mostUsedSounds.prefix(16).filter(matchesSearch)}
+  return model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && matchesSearch($0)}
+ }
  func navTab(_ title:String,_ symbol:String,selected:Bool,action:@escaping()->Void)->some View {
   Button(action:action){Label(title,systemImage:symbol).font(.system(size:13,weight:.medium).monospacedDigit()).padding(.horizontal,16).padding(.vertical,7).background(selected ? accent:.clear,in:Capsule()).foregroundStyle(selected ? onAccent:.primary).contentShape(Capsule())}.buttonStyle(.plain)
  }
@@ -61,6 +94,14 @@ struct ContentView: View {
       HStack(spacing:12){preset("Deep focus","scope",["brown":0.05,"rain":0.05]);preset("Quiet break","leaf",["ocean":0.05,"wind":0.05]);preset("Good night","moon",["pink":0.05,"night":0.05])}
      }
      if category=="My mixes" {
+      HStack{
+       Spacer()
+       Menu{
+        Button{showMixFileImporter=true}label:{Label("From file…",systemImage:"doc")}
+        Button{pasteMixLink()}label:{Label("From link on clipboard",systemImage:"link")}
+       }label:{Label("Import mix",systemImage:"square.and.arrow.down").font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,8).background(surface.opacity(0.08),in:Capsule())}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+      }
+      .fileImporter(isPresented:$showMixFileImporter,allowedContentTypes:[mixFileType,.json],allowsMultipleSelection:false){importMixFile($0)}
       if model.mixes.isEmpty{empty("Your space, your way","Add a few sounds and save your first mix.")}
       ForEach(model.mixes){mix in
        HStack(spacing:16){
@@ -78,12 +119,16 @@ struct ContentView: View {
         }.buttonStyle(.plain)
         Spacer()
         if model.isPlaying && model.levels == mix.levels {Text("Playing").font(.caption).foregroundStyle(accent)}
+        Menu{
+         Button{copyMixLink(mix)}label:{Label("Copy link",systemImage:"link")}
+         Button{exportMixFile(mix)}label:{Label("Export file…",systemImage:"square.and.arrow.up")}
+        }label:{Image(systemName:"square.and.arrow.up")}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityLabel("Share \(mix.name)").help("Share mix")
         Button{editingMix=mix}label:{Image(systemName:"pencil")}.buttonStyle(.borderless).accessibilityLabel("Edit \(mix.name)").help("Edit mix")
         Button{model.mixes.removeAll{$0.id==mix.id};model.persistMixes()}label:{Image(systemName:"trash")}.buttonStyle(.borderless).accessibilityLabel("Delete \(mix.name)")
        }.padding(20).background(surface.opacity(0.04),in:RoundedRectangle(cornerRadius:14))
       }
      } else {
-      if filtered.isEmpty && videos.isEmpty {empty("No sounds here",category=="Favorites" ? "Tap the heart to save your favorite sounds.":"Try a different search.")}
+      if filtered.isEmpty && videos.isEmpty {empty("No sounds here",category=="Favorites" ? "Tap the heart to save your favorite sounds.":category=="Recent" ? "Sounds you play will show up here.":category=="Most used" ? "Play a sound a couple of times and it will appear here.":"Try a different search.")}
       LazyVGrid(columns:[GridItem(.adaptive(minimum:210),spacing:14)],spacing:14){ForEach(filtered){sound in card(sound)}}
       if !videos.isEmpty {
        VStack(alignment:.leading,spacing:12){
@@ -98,6 +143,14 @@ struct ContentView: View {
    player.padding(.horizontal,26).padding(.bottom,22)
   }
  }.frame(minWidth:920,minHeight:640).preferredColorScheme(themeStore.current.scheme).tint(accent)
+ .overlay(alignment:.top){
+  if let notice {Text(notice).font(.system(size:13,weight:.medium)).padding(.horizontal,16).padding(.vertical,10).background(.regularMaterial,in:Capsule()).overlay(Capsule().stroke(surface.opacity(0.15))).padding(.top,14).transition(.move(edge:.top).combined(with:.opacity)).accessibilityAddTraits(.updatesFrequently)}
+ }.animation(.easeInOut(duration:0.25),value:notice)
+ .alert("Add this mix?",isPresented:Binding(get:{model.pendingSharedMix != nil},set:{if !$0{model.pendingSharedMix=nil}}),presenting:model.pendingSharedMix){shared in
+  Button("Add"){model.importSharedMix(shared,play:false);category="My mixes";model.pendingSharedMix=nil}
+  Button("Add & Play"){model.importSharedMix(shared,play:true);category="My mixes";model.pendingSharedMix=nil}
+  Button("Cancel",role:.cancel){model.pendingSharedMix=nil}
+ }message:{shared in Text("“\(shared.name)” has \(shared.levels.count) sound\(shared.levels.count==1 ? "":"s"): \(MixSharing.soundNames(in:shared)).")}
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowSettings"))){_ in showSettings=true}
@@ -122,7 +175,7 @@ struct ContentView: View {
  .alert("Could not start audio",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("OK"){model.error=nil}}message:{Text(model.error ?? "")}
  .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true } }
  }
- func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
+ func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Recent":return "clock";case "Most used":return "chart.bar";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
  func empty(_ title:String,_ detail:String)->some View {VStack(spacing:12){Image(systemName:"wind").font(.largeTitle).foregroundStyle(accent);Text(title).font(.title3);Text(detail).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(.vertical,70)}
  func preset(_ name:String,_ symbol:String,_ levels:[String:Double])->some View {Button{model.applyMix(levels)}label:{HStack{Image(systemName:symbol).foregroundStyle(accent);Text(name).font(.system(size:12,weight:.medium));Spacer();Image(systemName:"arrow.up.right").font(.caption).foregroundStyle(.secondary)}.padding(18).frame(maxWidth:.infinity).background(accent.opacity(0.07),in:RoundedRectangle(cornerRadius:13))}.buttonStyle(.plain)}
  func card(_ sound:Sound)->some View {
