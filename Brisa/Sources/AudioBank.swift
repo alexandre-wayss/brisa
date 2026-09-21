@@ -82,7 +82,10 @@ final class AudioBank {
    "keyboard": "keyboard-ambient.wav",
    "realFireplace": "real/real-fireplace.wav",
    "beachWaves": "real/real-beach-waves.wav",
-   "coffeeShop": "real/real-coffee-shop.wav"
+   "coffeeShop": "real/real-coffee-shop.wav",
+   "realRain": "real/real-rain.wav",
+   "realForest": "real/real-forest.wav",
+   "realCity": "real/real-city.wav"
   ]
   if let path = recordings[id] {let b=seamlessLoop(try loadRecording(recordingURL(path)));buffers[id]=b;return b}
   let rate = 24000.0, count = 24000 * 16
