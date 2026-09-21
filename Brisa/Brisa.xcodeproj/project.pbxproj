@@ -383,6 +383,8 @@
 		8B2E4D7A1C5F60932E8A4B17 /* Confetti.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A91E3B5D2084F6A1B7E5C3 /* Confetti.swift */; };
 		3E7A5C1D9B4F2086A5D1C7E2 /* YouTubeVideos.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2B6D803A9E41C57B0D8E4A6 /* YouTubeVideos.swift */; };
 		9C1F4B7E2A6D3058E1B9C4A7 /* MixSharing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D3A8E1F5C2B70496A8E2D15 /* MixSharing.swift */; };
+		A5E27C19D3B8406F1C7A9E32 /* Routines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B90D6A2E8F153C7D2A6B841 /* Routines.swift */; };
+		E1B84A6D0C3F27958B4E1A70 /* RoutinesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2C9D5A13E846B0C9D3F5A2 /* RoutinesView.swift */; };
 		4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroTimerView.swift; sourceTree = "<group>"; };
 		2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		A19F3C7E5B2D40886C1E7D35 /* PomodoroWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroWidget.swift; sourceTree = "<group>"; };
@@ -390,6 +392,8 @@
 		C7A91E3B5D2084F6A1B7E5C3 /* Confetti.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Confetti.swift; sourceTree = "<group>"; };
 		F2B6D803A9E41C57B0D8E4A6 /* YouTubeVideos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeVideos.swift; sourceTree = "<group>"; };
 		6D3A8E1F5C2B70496A8E2D15 /* MixSharing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixSharing.swift; sourceTree = "<group>"; };
+		4B90D6A2E8F153C7D2A6B841 /* Routines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Routines.swift; sourceTree = "<group>"; };
+		7F2C9D5A13E846B0C9D3F5A2 /* RoutinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutinesView.swift; sourceTree = "<group>"; };
 				4941FA5761A0A6F1528FB917 /* PomodoroTimerView.swift */,
 				2E9B6D4F1A8C3057B6E2A91C /* Theme.swift */,
 				A19F3C7E5B2D40886C1E7D35 /* PomodoroWidget.swift */,
@@ -397,6 +401,8 @@
 				C7A91E3B5D2084F6A1B7E5C3 /* Confetti.swift */,
 				F2B6D803A9E41C57B0D8E4A6 /* YouTubeVideos.swift */,
 				6D3A8E1F5C2B70496A8E2D15 /* MixSharing.swift */,
+				4B90D6A2E8F153C7D2A6B841 /* Routines.swift */,
+				7F2C9D5A13E846B0C9D3F5A2 /* RoutinesView.swift */,
 				939398DBB19571CA42D723CF /* PomodoroTimerView.swift in Sources */,
 				7C1E5A0B3D2F4A6981B0C4D7 /* Theme.swift in Sources */,
 				B4D80C2E6F1A93577E2D5A08 /* PomodoroWidget.swift in Sources */,
@@ -404,3 +410,5 @@
 				8B2E4D7A1C5F60932E8A4B17 /* Confetti.swift in Sources */,
 				3E7A5C1D9B4F2086A5D1C7E2 /* YouTubeVideos.swift in Sources */,
 				9C1F4B7E2A6D3058E1B9C4A7 /* MixSharing.swift in Sources */,
+				A5E27C19D3B8406F1C7A9E32 /* Routines.swift in Sources */,
+				E1B84A6D0C3F27958B4E1A70 /* RoutinesView.swift in Sources */,

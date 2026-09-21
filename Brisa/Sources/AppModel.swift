@@ -124,7 +124,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var soundUsage: [String: SoundUsage] = [:]
     /// A mix that arrived from a file or link and is waiting for the user to confirm.
     @Published var pendingSharedMix: SharedMix?
-    private var isAutomaticChange = false
+    var isAutomaticChange = false
+    @Published var routines: [Routine] = [] { didSet { persistRoutines() } }
+    var lastRoutineCheck = Date()
+    var lastRoutineCheckSaved = Date.distantPast
 
     private var volumeBeforeMute = 0.65
     private var resumeAfterWake = false
@@ -150,6 +153,7 @@ final class AppModel: ObservableObject {
             soundUsage = saved
         }
         audio.crossfadeEnabled = crossfadeEnabled
+        loadRoutines()
         audio.importedURL = { [weak self] id in self?.importedSounds.first(where: { $0.id == id }).flatMap { $0.storedFile }.map(URL.init(fileURLWithPath:)) }
         volumeBeforeMute = masterVolume > 0 ? masterVolume : 0.65
         restorePomodoro()
@@ -584,6 +588,7 @@ final class AppModel: ObservableObject {
         }
 
         updatePomodoroRemaining()
+        checkRoutines()
     }
 
     private func updatePomodoroRemaining() {
