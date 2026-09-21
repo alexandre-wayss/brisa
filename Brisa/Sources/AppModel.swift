@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 import Combine
 import UserNotifications
 
@@ -104,7 +105,13 @@ final class AppModel: ObservableObject {
     @Published var pomodoroSoundIDs: [String: String] = [:] { didSet { persistPomodoro() } }
     @Published var pomodoroSoundVolume = 0.05 { didSet { let valid = min(max(pomodoroSoundVolume, 0), 1); if valid != pomodoroSoundVolume { pomodoroSoundVolume = valid } else { persistPomodoro() } } }
 
+    @Published var pausesOnSleep = (UserDefaults.standard.object(forKey: "pausesOnSleep") as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(pausesOnSleep, forKey: "pausesOnSleep") }
+    }
+
     private var volumeBeforeMute = 0.65
+    private var resumeAfterWake = false
+    private var integration: SystemIntegration?
     private let audio = AudioBank()
     private var timer: Timer?
     private var pomodoroEndDate: Date?
@@ -128,7 +135,32 @@ final class AppModel: ObservableObject {
             guard let model = self else { return }
             Task { @MainActor [weak model] in model?.tickTimer() }
         }
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: audio.engine, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.recoverAudioEngine() }
+        }
+        integration = SystemIntegration(model: self)
         synchronizeAudio()
+    }
+
+    /// Rebuilds playback after the output device changes (headphones unplugged, AirPods connected, wake from sleep).
+    func recoverAudioEngine() {
+        audio.reset()
+        synchronizeAudio()
+    }
+
+    func systemWillSleep() {
+        guard pausesOnSleep, isPlaying else { return }
+        resumeAfterWake = true
+        isPlaying = false
+        synchronizeAudio()
+    }
+
+    func systemDidWake() {
+        let shouldResume = resumeAfterWake
+        resumeAfterWake = false
+        if shouldResume { isPlaying = true }
+        // The output device can change while asleep, so always rebuild the engine before playing again.
+        recoverAudioEngine()
     }
 
     func toggle(_ soundID: String) {
@@ -445,6 +477,7 @@ final class AppModel: ObservableObject {
         do { try audio.update(levels, playing: isPlaying, master: masterVolume) }
         catch { self.error = error.localizedDescription; isPlaying = false }
         UserDefaults.standard.set(levels, forKey: "levels")
+        integration?.refreshNowPlaying()
     }
 
     var nowPlayingTitle: String {

@@ -93,6 +93,13 @@ final class AudioBank {
   let loop = seamlessLoop(b)
   buffers[id]=loop; return loop
  }
+ /// After the output device changes the engine stops and its player nodes go stale.
+ /// Tear them down so the next `update` rebuilds a clean graph on the new device.
+ func reset() {
+  for node in players.values { node.stop(); engine.detach(node) }
+  players.removeAll()
+  engine.stop()
+ }
  func discardBuffer(for id: String) { buffers.removeValue(forKey: id) }
  func update(_ levels: [String:Double], playing: Bool, master: Double) throws {
   guard playing else {

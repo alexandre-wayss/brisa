@@ -291,7 +291,7 @@ private struct LiveBrisaPlayer: View {
 
 struct BrisaWidgetSettings: View {
     private enum Tab: String, CaseIterable, Identifiable {
-        case appearance = "Appearance", widgets = "Widgets"
+        case appearance = "Appearance", widgets = "Widgets", general = "General"
         var id: String { rawValue }
     }
 
@@ -301,6 +301,8 @@ struct BrisaWidgetSettings: View {
     @ObservedObject private var miniPlayer = BrisaDesktopPlayer.shared
     @ObservedObject private var pomodoroWidget = BrisaPomodoroWidget.shared
     @State private var tab = Tab.appearance
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchMessage: String?
 
     private var hasPendingPreview: Bool { themes.preview != nil && themes.preview != themes.selected }
 
@@ -319,6 +321,7 @@ struct BrisaWidgetSettings: View {
                 switch tab {
                 case .appearance: appearance
                 case .widgets: widgets
+                case .general: general
                 }
             }
             .id(tab)
@@ -329,6 +332,57 @@ struct BrisaWidgetSettings: View {
         .preferredColorScheme(themes.current.scheme)
         .tint(themes.current.accent)
         .onDisappear { themes.cancelPreview() }
+    }
+
+    // MARK: General
+
+    private var general: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            settingRow(symbol: "power", title: "Open Brisa at login",
+                       detail: "Start in the menu bar when you sign in, so your widgets are always there.") {
+                Toggle("", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin)).labelsHidden().toggleStyle(.switch)
+            }
+            if let launchMessage {
+                Text(launchMessage).font(.caption).foregroundStyle(.orange)
+            }
+            settingRow(symbol: "moon.zzz", title: "Pause sounds when the Mac sleeps",
+                       detail: "Playback stops when the lid closes and picks up again on wake, on whichever speakers or headphones are connected.") {
+                Toggle("", isOn: $model.pausesOnSleep).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "keyboard", title: "Media keys and Control Center",
+                       detail: "Play and pause from your keyboard, AirPods or the Now Playing menu. Always on.") {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(themes.current.accent)
+            }
+            settingRow(symbol: "headphones", title: "Audio output changes",
+                       detail: "If you unplug headphones or switch devices, Brisa recovers on its own. Always on.") {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(themes.current.accent)
+            }
+        }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LaunchAtLogin.set(enabled)
+            launchMessage = LaunchAtLogin.status == .requiresApproval
+                ? "Approve Brisa in System Settings → General → Login Items to finish." : nil
+        } catch {
+            launchMessage = "Couldn't change this: \(error.localizedDescription)"
+        }
+        launchAtLogin = LaunchAtLogin.isEnabled
+    }
+
+    private func settingRow<Trailing: View>(symbol: String, title: String, detail: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol).font(.title3).frame(width: 26).foregroundStyle(themes.current.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            trailing()
+        }
+        .padding(16)
+        .background(surface.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
     }
 
     // MARK: Widgets

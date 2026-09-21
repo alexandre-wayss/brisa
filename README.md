@@ -15,6 +15,7 @@ Brisa is a native macOS ambient-sound app for focus, rest, and sleep. Build a so
 - Glass-style player and a compact menu-bar player with mute, volume, timer, and quick sound switching.
 - global keyboard and mouse sounds using recorded samples.
 - A first-run welcome flow and local, persistent preferences.
+- Media keys, AirPods and the Now Playing menu control playback. Brisa recovers by itself when you switch or unplug headphones, pauses when the Mac sleeps and resumes on wake, and can open at login (Settings → General).
 - Import WAV, AIFF, and MP3 files, or download direct HTTPS audio links into a private local library. Attribution and license notes stay with each imported source; YouTube links are preserved as source bookmarks and are never extracted.
 
 ## Desktop mini player
