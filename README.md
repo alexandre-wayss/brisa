@@ -44,6 +44,13 @@ cd Brisa
 open build/Brisa.app
 ```
 
+Run the tests:
+
+```sh
+cd Brisa
+./Scripts/test.sh
+```
+
 ## Global keyboard and Mouse sounds
 
 Enable **Interaction sounds** inside Brisa, then authorize Brisa in **System Settings → Privacy & Security → Accessibility**. Some macOS versions also require **Input Monitoring**. Brisa only observes event type and repeat state; it does not read, store, or transmit typed text.
@@ -57,7 +64,9 @@ Brisa/
   Resources/CREDITOS-AUDIO.md  Audio sources and licenses
   Scripts/build.sh             Local app build
   Scripts/package-dmg.sh       Drag-to-Applications DMG build
+  Scripts/test.sh              Build and run the tests
   Sources/                     SwiftUI application modules
+  Tests/                       Tests for sharing and scheduling logic
 ```
 
 ## License

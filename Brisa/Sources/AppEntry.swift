@@ -55,7 +55,6 @@ final class BrisaAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-@main
 struct BrisaApp: App {
     @NSApplicationDelegateAdaptor(BrisaAppDelegate.self) private var delegate
     @StateObject private var model = AppModel.shared
