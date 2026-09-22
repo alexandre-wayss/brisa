@@ -25,6 +25,21 @@ final class BrisaAppDelegate: NSObject, NSApplicationDelegate {
             if let playbackAction { playbackAction() }
             else { pendingPlaybackActions += 1 }
         }
+        // A shared mix, from a `.brisamix` file or a `brisa://mix?d=…` link. It is validated, then the user confirms.
+        for url in urls {
+            let shared: SharedMix?
+            if url.isFileURL, url.pathExtension.lowercased() == MixSharing.fileExtension {
+                shared = (try? Data(contentsOf: url)).flatMap { MixSharing.decode(data: $0) }
+            } else if url.scheme == "brisa", url.host == "mix" {
+                shared = MixSharing.decode(link: url)
+            } else { continue }
+            Task { @MainActor in
+                BrisaWindowActions.showInDock()
+                NotificationCenter.default.post(name: Notification.Name("BrisaShowWindow"), object: nil)
+                if let shared { AppModel.shared.pendingSharedMix = shared }
+                else { NSSound.beep() }
+            }
+        }
     }
 
     func connectPlayback(_ action: @escaping () -> Void) {
@@ -48,11 +63,15 @@ struct BrisaApp: App {
     var body: some Scene {
         Window("Brisa", id: "main") {
             BrisaMainView(model: model)
-                .onAppear { delegate.connectPlayback { model.togglePlayback() }; BrisaDesktopPlayer.shared.restore() }
+                .onAppear { delegate.connectPlayback { model.togglePlayback() }; BrisaDesktopPlayer.shared.restore(); BrisaPomodoroWidget.shared.restore() }
         }
             .windowStyle(.hiddenTitleBar)
             .defaultSize(width: 1080, height: 770)
             .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("Settings…") { NotificationCenter.default.post(name: Notification.Name("BrisaShowSettings"), object: nil) }
+                        .keyboardShortcut(",")
+                }
                 CommandGroup(replacing: .appTermination) {
                     Button("Keep Running in Menu Bar") { BrisaWindowActions.moveToMenuBar() }
                         .keyboardShortcut("q")
@@ -60,8 +79,16 @@ struct BrisaApp: App {
                         .keyboardShortcut("q", modifiers: [.command, .option])
                 }
             }
-        MenuBarExtra("Brisa", systemImage: "wind") {
+        MenuBarExtra {
             MenuBarPlayerView(model: model)
+        } label: {
+            // While a Pomodoro is running (or paused mid-phase) the menu bar shows the countdown instead of the Brisa icon.
+            if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
+                Label(model.pomodoroTimeText, systemImage: model.isPomodoroRunning ? model.pomodoroPhase.symbol : "pause.fill")
+                    .labelStyle(.titleAndIcon).monospacedDigit()
+            } else {
+                Image(systemName: "wind")
+            }
         }
         .menuBarExtraStyle(.window)
     }
@@ -167,13 +194,14 @@ private struct LiveBrisaPlayer: View {
     @State private var heldPhase = 0.0
     @State private var lastRenderedPhase = 0.0
     @State private var animationStart: Date?
-    private let mint = Color(red: 0.65, green: 0.93, blue: 0.77)
+    @ObservedObject private var themeStore = BrisaThemeStore.shared
+    private var mint: Color { themeStore.current.accent }
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 26).fill(.ultraThinMaterial)
             RoundedRectangle(cornerRadius: 26)
-                .fill(LinearGradient(colors: [mint.opacity(0.14), Color.black.opacity(0.35)],
+                .fill(LinearGradient(colors: [mint.opacity(0.14), themeStore.current.shade],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.isPlaying || reduceMotion)) { timeline in
                 let phase = animationStart.map { heldPhase + max(0, timeline.date.timeIntervalSince($0)) * 0.65 } ?? heldPhase
@@ -230,7 +258,12 @@ private struct LiveBrisaPlayer: View {
                         Image(systemName: "chevron.down").font(.caption)
                     }
                 }.menuStyle(.borderlessButton).help("Choose a sound or saved mix")
-                Text("Your quiet space").font(.caption).foregroundStyle(.secondary)
+                if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
+                    Label("\(model.pomodoroPhase.title) · \(model.pomodoroTimeText)", systemImage: model.isPomodoroRunning ? "timer" : "pause.fill")
+                        .font(.caption.monospacedDigit()).foregroundStyle(mint)
+                } else {
+                    Text("Your quiet space").font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 HStack(spacing: 12) {
                     Button { model.toggleMute() } label: {
@@ -243,17 +276,17 @@ private struct LiveBrisaPlayer: View {
                     Button { model.togglePlayback() } label: {
                         Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 20)).frame(width: 52, height: 52)
-                            .background(.white.opacity(0.12), in: Circle())
+                            .background(surface.opacity(0.12), in: Circle())
                             .overlay(Circle().strokeBorder(mint.opacity(0.5), lineWidth: 1))
                     }.buttonStyle(.plain).accessibilityLabel(model.isPlaying ? "Pause" : "Play")
                 }
             }.padding(22)
         }
         .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(
-            LinearGradient(colors: [.white.opacity(0.5), .clear, mint.opacity(0.5)],
+            LinearGradient(colors: [surface.opacity(themeStore.current == .light ? 0.25 : 0.5), .clear, mint.opacity(0.5)],
                            startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 26))
-        .frame(width: 380, height: 240).preferredColorScheme(.dark).tint(mint)
+        .frame(width: 380, height: 240).preferredColorScheme(themeStore.current.scheme).tint(mint)
         .coordinateSpace(name: "miniSurface")
         .onAppear { if model.isPlaying && !reduceMotion { animationStart = .now } }
         .onChange(of: model.isPlaying && !reduceMotion) { running in
@@ -277,33 +310,206 @@ private struct LiveBrisaPlayer: View {
 
 
 struct BrisaWidgetSettings: View {
+    private enum Tab: String, CaseIterable, Identifiable {
+        case appearance = "Appearance", widgets = "Widgets", general = "General"
+        var id: String { rawValue }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: AppModel
+    @ObservedObject private var themes = BrisaThemeStore.shared
+    @ObservedObject private var miniPlayer = BrisaDesktopPlayer.shared
+    @ObservedObject private var pomodoroWidget = BrisaPomodoroWidget.shared
+    @ObservedObject private var videoPlayer = YouTubeVideoPlayer.shared
+    @State private var tab = Tab.appearance
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchMessage: String?
+
+    private var hasPendingPreview: Bool { themes.preview != nil && themes.preview != themes.selected }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Text("Settings").font(.title2.bold())
                 Spacer()
-                Button("Done") { dismiss() }
+                Button("Done") { themes.cancelPreview(); dismiss() }
             }
-            Label("Widgets", systemImage: "square.grid.2x2").font(.headline)
-            Text("Your quiet space, right on your desktop.").foregroundStyle(.secondary)
-            LiveBrisaPlayer(model: model).allowsHitTesting(false)
-                .overlay(alignment: .bottomTrailing) {
-                    Button {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            BrisaDesktopPlayer.shared.addToDesktop()
-                        }
-                    } label: {
-                        Image(systemName: "plus").font(.title2.weight(.medium))
-                            .frame(width: 48, height: 48).background(.regularMaterial, in: Circle())
-                            .overlay(Circle().strokeBorder(.white.opacity(0.3)))
-                    }.buttonStyle(.plain).help("Add to desktop").accessibilityLabel("Add widget to desktop")
-                        .offset(x: 16, y: 16)
+            Picker("", selection: $tab) {
+                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented).labelsHidden()
+            ScrollView {
+                switch tab {
+                case .appearance: appearance
+                case .widgets: widgets
+                case .general: general
                 }
-            Text("Drag anywhere except the volume slider to position it. Pin and lock controls live on the widget.")
-                .font(.caption).foregroundStyle(.secondary).frame(width: 380, alignment: .leading)
-        }.padding(32).frame(width: 470).preferredColorScheme(.dark)
+            }
+            .id(tab)
+        }
+        .padding(32)
+        .frame(width: 470, height: 720)
+        .background(themes.current.background[1].opacity(0.001))
+        .preferredColorScheme(themes.current.scheme)
+        .tint(themes.current.accent)
+        .onDisappear { themes.cancelPreview() }
+    }
+
+    // MARK: General
+
+    private var general: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            settingRow(symbol: "power", title: "Open Brisa at login",
+                       detail: "Start in the menu bar when you sign in, so your widgets are always there.") {
+                Toggle("", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin)).labelsHidden().toggleStyle(.switch)
+            }
+            if let launchMessage {
+                Text(launchMessage).font(.caption).foregroundStyle(.orange)
+            }
+            settingRow(symbol: "moon.zzz", title: "Pause sounds when the Mac sleeps",
+                       detail: "Playback stops when the lid closes and picks up again on wake, on whichever speakers or headphones are connected.") {
+                Toggle("", isOn: $model.pausesOnSleep).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "waveform.path", title: "Crossfade between mixes",
+                       detail: "Sounds fade in and out when you switch mixes instead of cutting. Turn off for instant changes.") {
+                Toggle("", isOn: $model.crossfadeEnabled).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "play.rectangle", title: "Small video window",
+                       detail: "YouTube videos play in a compact window that stays visible but out of the way. YouTube requires the video to stay on screen while it plays.") {
+                Toggle("", isOn: $videoPlayer.compact).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "keyboard", title: "Media keys and Control Center",
+                       detail: "Play and pause from your keyboard, AirPods or the Now Playing menu. Always on.") {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(themes.current.accent)
+            }
+            settingRow(symbol: "headphones", title: "Audio output changes",
+                       detail: "If you unplug headphones or switch devices, Brisa recovers on its own. Always on.") {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(themes.current.accent)
+            }
+        }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LaunchAtLogin.set(enabled)
+            launchMessage = LaunchAtLogin.status == .requiresApproval
+                ? "Approve Brisa in System Settings → General → Login Items to finish." : nil
+        } catch {
+            launchMessage = "Couldn't change this: \(error.localizedDescription)"
+        }
+        launchAtLogin = LaunchAtLogin.isEnabled
+    }
+
+    private func settingRow<Trailing: View>(symbol: String, title: String, detail: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol).font(.title3).frame(width: 26).foregroundStyle(themes.current.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            trailing()
+        }
+        .padding(16)
+        .background(surface.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    // MARK: Widgets
+
+    private var widgets: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Add Brisa to your desktop. Drag a widget anywhere to place it; pin and lock controls live on each widget.")
+                .font(.caption).foregroundStyle(.secondary)
+            widgetCard(title: "Mini player", symbol: "waveform", detail: "Play, pause and switch sounds without opening Brisa.",
+                       isOn: miniPlayer.enabled, previewSize: CGSize(width: 380, height: 240),
+                       add: {
+                           themes.cancelPreview()
+                           dismiss()
+                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { BrisaDesktopPlayer.shared.addToDesktop() }
+                       },
+                       remove: { miniPlayer.hide() }) {
+                LiveBrisaPlayer(model: model)
+            }
+            widgetCard(title: "Pomodoro", symbol: "timer", detail: "A focus timer with start, pause and skip, and your current task.",
+                       isOn: pomodoroWidget.enabled, previewSize: CGSize(width: 240, height: 284),
+                       add: { pomodoroWidget.enabled = true },
+                       remove: { pomodoroWidget.hide() }) {
+                PomodoroWidgetView(model: model)
+            }
+        }
+    }
+
+    private func widgetCard<Preview: View>(title: String, symbol: String, detail: String, isOn: Bool, previewSize: CGSize,
+                                           add: @escaping () -> Void, remove: @escaping () -> Void,
+                                           @ViewBuilder preview: () -> Preview) -> some View {
+        let scale = min(1, 0.8 * 406 / previewSize.width, 250 / previewSize.height)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(title, systemImage: symbol).font(.headline)
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isOn {
+                    Label("On desktop", systemImage: "checkmark.circle.fill").font(.caption.weight(.medium))
+                        .foregroundStyle(themes.current.accent)
+                }
+            }
+            preview()
+                .allowsHitTesting(false).accessibilityHidden(true)
+                .scaleEffect(scale)
+                .frame(width: previewSize.width * scale, height: previewSize.height * scale)
+                .frame(maxWidth: .infinity)
+            HStack {
+                Spacer()
+                if isOn {
+                    Button(role: .destructive, action: remove) { Label("Remove from desktop", systemImage: "minus.circle") }
+                } else {
+                    Button(action: add) { Label("Add to desktop", systemImage: "plus.circle.fill") }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .padding(16)
+        .background(surface.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var appearance: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Appearance", systemImage: "paintpalette").font(.headline)
+            Text("Pick a theme to preview it across the app and the mini player, then apply it.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                ForEach(BrisaTheme.allCases) { theme in
+                    let isApplied = themes.selected == theme
+                    let isShown = themes.current == theme
+                    Button { withAnimation(.easeInOut(duration: 0.2)) { themes.preview = theme == themes.selected ? nil : theme } } label: {
+                        VStack(spacing: 6) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                Circle().fill(theme.accent).frame(width: 16, height: 16)
+                            }
+                            .frame(height: 46)
+                            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isShown ? theme.accent : Color.gray.opacity(0.35), lineWidth: isShown ? 2 : 1))
+                            Text(theme.name).font(.caption.weight(isShown ? .semibold : .regular))
+                            Image(systemName: isApplied ? "checkmark.circle.fill" : "circle").font(.caption2)
+                                .foregroundStyle(isApplied ? themes.current.accent : .secondary).opacity(isApplied ? 1 : 0.4)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(theme.name) theme\(isApplied ? ", applied" : "")")
+                }
+            }
+            if hasPendingPreview, let preview = themes.preview {
+                HStack {
+                    Text("Previewing \(preview.name)").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Cancel") { withAnimation { themes.cancelPreview() } }
+                    Button("Apply") { withAnimation { themes.apply(preview) } }.keyboardShortcut(.defaultAction)
+                }
+            }
+        }
     }
 }

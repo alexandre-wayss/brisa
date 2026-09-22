@@ -34,3 +34,13 @@ Processamento: conversão para PCM mono 24 kHz, recorte, remoção de silêncio 
 - **Beach Waves** — Autor: Yoyodaman234. Freesound #331219, “ocean waves at the beach 1”. CC0 1.0. Fonte: https://freesound.org/people/Yoyodaman234/sounds/331219/
 
 Essas gravações são convertidas para PCM mono de 24 kHz e recebem fades curtos nas bordas para reduzir cliques ao repetir. Nenhuma parte delas é sintetizada.
+
+## Mais ambiências reais — chuva, floresta e cidade
+
+Todas publicadas sob CC0 1.0 (licença conferida na página de cada som em 21/09/2026). Fonte do áudio: pré-visualização pública HQ (MP3) do Freesound, como nas gravações acima; os originais em WAV não foram usados.
+
+- **Steady Rain** — Autor: nick121087. Freesound #234317, “Rain Ambience” (chuva gravada em Roland R-26, 42 s). Fonte: https://freesound.org/people/nick121087/sounds/234317/ — Áudio: https://cdn.freesound.org/previews/234/234317_3840537-hq.mp3
+- **Forest Birds** — Autor: Magnesus. Freesound #723913, “Forest birds - ambient seamless loop” (floresta na Polônia, 27 s). Fonte: https://freesound.org/people/Magnesus/sounds/723913/ — Áudio: https://cdn.freesound.org/previews/723/723913_2008500-hq.mp3
+- **City Street** — Autor: fokshtein. Freesound #248091, “City Ambience” (cidade com carros e tráfego, Zoom H2N, 46 s). Fonte: https://freesound.org/people/fokshtein/sounds/248091/ — Áudio: https://cdn.freesound.org/previews/248/248091_4542036-hq.mp3
+
+Processamento: conversão para PCM mono de 24 kHz, ajuste de ganho para o mesmo volume das demais gravações reais e fades de 20 ms nas bordas. A repetição sem emenda é feita pelo app ao tocar. Nenhuma parte é sintetizada.

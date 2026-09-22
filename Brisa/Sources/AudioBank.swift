@@ -33,11 +33,43 @@ func recordingURL(_ path:String) throws -> URL {
  return url
 }
 
+/// A smooth volume change for one sound. `smoothstep` keeps the start and end gentle so mixes blend instead of cutting.
+struct VolumeRamp {
+ var start: Float, target: Float, startTime: TimeInterval, duration: TimeInterval
+ func value(at time: TimeInterval) -> Float {
+  guard duration > 0 else { return target }
+  let p = Float(min(max((time - startTime) / duration, 0), 1))
+  return start + (target - start) * (p * p * (3 - 2 * p))
+ }
+ func isFinished(at time: TimeInterval) -> Bool { time - startTime >= duration }
+}
+
+/// Decides how a sound's volume should move when the mix changes.
+enum Crossfade {
+ static let fadeSeconds = 1.6      // a sound entering or leaving the mix
+ static let blendSeconds = 0.7     // a sound that stays but changes a lot
+ static let smoothSeconds = 0.06   // slider drags and small tweaks
+
+ /// Returns nil when nothing needs to move.
+ static func plan(current: Float, target: Float, enabled: Bool, now: TimeInterval) -> VolumeRamp? {
+  guard abs(current - target) > 0.0001 else { return nil }
+  guard enabled else { return VolumeRamp(start: current, target: target, startTime: now, duration: 0) }
+  let entersOrLeaves = current < 0.0005 || target < 0.0005
+  let bigChange = abs(target - current) / max(current, target) > 0.4
+  let duration = entersOrLeaves ? fadeSeconds : (bigChange ? blendSeconds : smoothSeconds)
+  return VolumeRamp(start: current, target: target, startTime: now, duration: duration)
+ }
+}
+
 final class AudioBank {
  let engine = AVAudioEngine()
  var players: [String: AVAudioPlayerNode] = [:]
  var buffers: [String: AVAudioPCMBuffer] = [:]
  var importedURL: ((String) -> URL?)?
+ /// Fade sounds in and out when the mix changes instead of cutting.
+ var crossfadeEnabled = true
+ private var ramps: [String: VolumeRamp] = [:]
+ private var rampTimer: Timer?
  func buffer(_ id: String) throws -> AVAudioPCMBuffer {
   if let b = buffers[id] { return b }
   if id.hasPrefix("imported-") {
@@ -50,7 +82,10 @@ final class AudioBank {
    "keyboard": "keyboard-ambient.wav",
    "realFireplace": "real/real-fireplace.wav",
    "beachWaves": "real/real-beach-waves.wav",
-   "coffeeShop": "real/real-coffee-shop.wav"
+   "coffeeShop": "real/real-coffee-shop.wav",
+   "realRain": "real/real-rain.wav",
+   "realForest": "real/real-forest.wav",
+   "realCity": "real/real-city.wav"
   ]
   if let path = recordings[id] {let b=seamlessLoop(try loadRecording(recordingURL(path)));buffers[id]=b;return b}
   let rate = 24000.0, count = 24000 * 16
@@ -93,21 +128,56 @@ final class AudioBank {
   let loop = seamlessLoop(b)
   buffers[id]=loop; return loop
  }
+ /// After the output device changes the engine stops and its player nodes go stale.
+ /// Tear them down so the next `update` rebuilds a clean graph on the new device.
+ func reset() {
+  for node in players.values { node.stop(); engine.detach(node) }
+  players.removeAll()
+  ramps.removeAll()
+  engine.stop()
+ }
  func discardBuffer(for id: String) { buffers.removeValue(forKey: id) }
  func update(_ levels: [String:Double], playing: Bool, master: Double) throws {
   guard playing else {
    for node in players.values { node.pause() }
+   ramps.removeAll()
    return
   }
   for (id,level) in levels where level > 0 {
    if players[id] == nil {
     let b=try buffer(id), node=AVAudioPlayerNode(); engine.attach(node)
     engine.connect(node,to:engine.mainMixerNode,format:b.format)
+    node.volume = 0
     node.scheduleBuffer(b,at:nil,options:.loops); players[id]=node
    }
   }
   if !engine.isRunning { try engine.start() }
   engine.mainMixerNode.outputVolume=Float(master)
-  for (id,node) in players { node.volume=Float(levels[id] ?? 0); if playing { if !node.isPlaying { node.play() } } else { node.pause() } }
+  let now = ProcessInfo.processInfo.systemUptime
+  for (id,node) in players {
+   let target = Float(levels[id] ?? 0)
+   // Continue from where a running fade currently is, so quick successive changes never jump.
+   let current = ramps[id]?.value(at: now) ?? node.volume
+   if let ramp = Crossfade.plan(current: current, target: target, enabled: crossfadeEnabled, now: now) {
+    if ramp.duration == 0 { ramps[id] = nil; node.volume = target } else { ramps[id] = ramp; node.volume = current }
+   } else { ramps[id] = nil; node.volume = target }
+   if !node.isPlaying { node.play() }
+  }
+  startRampTimerIfNeeded()
+ }
+
+ private func startRampTimerIfNeeded() {
+  guard !ramps.isEmpty, rampTimer == nil else { return }
+  rampTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.stepRamps() }
+ }
+
+ private func stepRamps() {
+  let now = ProcessInfo.processInfo.systemUptime
+  for (id, ramp) in ramps {
+   guard let node = players[id] else { ramps[id] = nil; continue }
+   node.volume = ramp.isFinished(at: now) ? ramp.target : ramp.value(at: now)
+   if ramp.isFinished(at: now) { ramps[id] = nil }
+  }
+  if ramps.isEmpty { rampTimer?.invalidate(); rampTimer = nil }
  }
 }

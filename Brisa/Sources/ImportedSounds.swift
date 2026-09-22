@@ -16,6 +16,8 @@ struct ImportedSound: Codable, Identifiable {
     var license: String
     var importedAt: Date
     var unavailableReason: String?
+    var videoID: String?
+    var thumbnailURL: String?
 
     var sound: Sound {
         Sound(id: id, name: name, icon: source == .youtube ? "play.rectangle" : "music.note",
@@ -30,7 +32,7 @@ struct ImportedSound: Codable, Identifiable {
 }
 
 enum AudioImportError: LocalizedError {
-    case unsupportedFormat, invalidURL, unsupportedLink, unsafeResponse, fileTooLarge, downloadFailed
+    case unsupportedFormat, invalidURL, unsupportedLink, unsafeResponse, fileTooLarge, downloadFailed, notAVideo, duplicateVideo
 
     var errorDescription: String? {
         switch self {
@@ -40,6 +42,8 @@ enum AudioImportError: LocalizedError {
         case .unsafeResponse: return "The link did not return a supported audio file."
         case .fileTooLarge: return "Audio files must be smaller than 250 MB."
         case .downloadFailed: return "Brisa could not download this audio file."
+        case .notAVideo: return "Paste a link to a single YouTube video, not a channel or a playlist."
+        case .duplicateVideo: return "This video is already in your library."
         }
     }
 }

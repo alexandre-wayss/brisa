@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 import AppKit
 
 struct ImportSoundsView: View {
+    @ObservedObject private var themeStore = BrisaThemeStore.shared
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: AppModel
     @State private var urlText = ""
@@ -25,8 +26,8 @@ struct ImportSoundsView: View {
             }.buttonStyle(.borderedProminent)
             Divider()
             Text("External audio URL").font(.headline)
-            TextField("https://example.com/sound.mp3", text: $urlText).textFieldStyle(.roundedBorder)
-            Text("Direct HTTPS links to WAV, AIFF, and MP3 are downloaded once after type and size checks. YouTube links are saved as attributed sources, not extracted or played.")
+            TextField("https://example.com/sound.mp3 or a YouTube link", text: $urlText).textFieldStyle(.roundedBorder)
+            Text("Direct HTTPS links to WAV, AIFF, and MP3 are downloaded once after type and size checks. YouTube links become video buttons that play in Brisa’s video window through YouTube’s official player. Brisa never downloads or extracts YouTube audio.")
                 .font(.caption).foregroundStyle(.secondary)
             Group {
                 TextField("Attribution (optional)", text: $attribution)
@@ -47,7 +48,7 @@ struct ImportSoundsView: View {
                 }.disabled(importing || urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(26).frame(width: 520).preferredColorScheme(.dark).tint(accent)
+        .padding(26).frame(width: 520).preferredColorScheme(themeStore.current.scheme).tint(accent)
         .fileImporter(isPresented: $choosingFile, allowedContentTypes: audioTypes, allowsMultipleSelection: false) { result in
             do {
                 guard let url = try result.get().first else { return }

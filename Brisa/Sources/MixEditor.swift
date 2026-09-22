@@ -1,5 +1,6 @@
 import SwiftUI
 struct MixEditor: View {
+ @ObservedObject private var themeStore=BrisaThemeStore.shared
  @Environment(\.dismiss) private var dismiss
  @State private var draft: Mix
  let sounds: [Sound]
@@ -35,6 +36,6 @@ struct MixEditor: View {
      onSave(draft);dismiss()
     }.keyboardShortcut(.defaultAction).disabled(draft.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || draft.levels.isEmpty)
    }
-  }.padding(26).frame(width:560,height:600).tint(accent).preferredColorScheme(.dark)
+  }.padding(26).frame(width:560,height:600).tint(accent).preferredColorScheme(themeStore.current.scheme)
  }
 }
