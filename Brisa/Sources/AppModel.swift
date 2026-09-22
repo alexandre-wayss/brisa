@@ -85,6 +85,8 @@ final class AppModel: ObservableObject {
     let inputSounds = InputSounds()
 
     @Published var levels: [String: Double] = [:]
+    /// Stereo position of each playing sound, -1 (left) to 1 (right). Missing means centred.
+    @Published var pans: [String: Double] = [:]
     @Published var favorites: Set<String> = []
     @Published var mixes: [Mix] = []
     @Published var importedSounds: [ImportedSound] = []
@@ -121,6 +123,13 @@ final class AppModel: ObservableObject {
     @Published var crossfadeEnabled = (UserDefaults.standard.object(forKey: "crossfade") as? Bool) ?? true {
         didSet { UserDefaults.standard.set(crossfadeEnabled, forKey: "crossfade"); audio.crossfadeEnabled = crossfadeEnabled }
     }
+    @Published var livingMixEnabled = UserDefaults.standard.bool(forKey: "livingMix") {
+        didSet { UserDefaults.standard.set(livingMixEnabled, forKey: "livingMix"); audio.livingDepth = livingDepth }
+    }
+    @Published var livingMixIntensity = LivingMix.Intensity(rawValue: UserDefaults.standard.string(forKey: "livingMixIntensity") ?? "") ?? .moderate {
+        didSet { UserDefaults.standard.set(livingMixIntensity.rawValue, forKey: "livingMixIntensity"); audio.livingDepth = livingDepth }
+    }
+    private var livingDepth: Double { livingMixEnabled ? livingMixIntensity.depth : 0 }
     @Published private(set) var soundUsage: [String: SoundUsage] = [:]
     /// A mix that arrived from a file or link and is waiting for the user to confirm.
     @Published var pendingSharedMix: SharedMix?
@@ -139,6 +148,7 @@ final class AppModel: ObservableObject {
 
     init() {
         levels = UserDefaults.standard.dictionary(forKey: "levels") as? [String: Double] ?? [:]
+        pans = UserDefaults.standard.dictionary(forKey: "pans") as? [String: Double] ?? [:]
         favorites = Set(UserDefaults.standard.stringArray(forKey: "favorites") ?? [])
         if let data = UserDefaults.standard.data(forKey: "mixes"),
            let savedMixes = try? JSONDecoder().decode([Mix].self, from: data) {
@@ -153,6 +163,7 @@ final class AppModel: ObservableObject {
             soundUsage = saved
         }
         audio.crossfadeEnabled = crossfadeEnabled
+        audio.livingDepth = livingDepth
         loadRoutines()
         audio.importedURL = { [weak self] id in self?.importedSounds.first(where: { $0.id == id }).flatMap { $0.storedFile }.map(URL.init(fileURLWithPath:)) }
         volumeBeforeMute = masterVolume > 0 ? masterVolume : 0.65
@@ -236,9 +247,16 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(Array(favorites), forKey: "favorites")
     }
 
-    func applyMix(_ levels: [String: Double]) { self.levels = levels; isPlaying = true; recordUsage(levels.keys); synchronizeAudio() }
-    func replaceWith(_ sound: Sound) { levels = [sound.id: 0.05]; isPlaying = true; recordUsage([sound.id]); synchronizeAudio() }
-    func saveMix(named name: String) { mixes.append(Mix(name: name, levels: levels)); persistMixes() }
+    func applyMix(_ levels: [String: Double], pans: [String: Double] = [:]) { self.levels = levels; self.pans = pans; isPlaying = true; recordUsage(levels.keys); synchronizeAudio() }
+    func applyMix(_ mix: Mix) { applyMix(mix.levels, pans: mix.pans) }
+    func replaceWith(_ sound: Sound) { levels = [sound.id: 0.05]; pans = [:]; isPlaying = true; recordUsage([sound.id]); synchronizeAudio() }
+    func saveMix(named name: String) { mixes.append(Mix(name: name, levels: levels, pans: pans)); persistMixes() }
+    func setPan(_ pan: Double, for soundID: String) {
+        let clamped = min(max(pan, -1), 1)
+        // Snap near the middle so "centre" is easy to hit with a slider.
+        pans[soundID] = abs(clamped) < 0.04 ? nil : clamped
+        synchronizeAudio()
+    }
     func persistMixes() { if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") } }
     func persistImportedSounds() { if let data = try? JSONEncoder().encode(importedSounds) { UserDefaults.standard.set(data, forKey: "importedSounds") } }
 
@@ -550,7 +568,7 @@ final class AppModel: ObservableObject {
         defer { isAutomaticChange = false }
         let choice = pomodoroSoundIDs[pomodoroPhase.rawValue] ?? ""
         if choice.hasPrefix("mix:"), let mix = mixes.first(where: { "mix:\($0.id.uuidString)" == choice }) {
-            applyMix(mix.levels)
+            applyMix(mix)
         } else if choice.hasPrefix("preset:"), let preset = pomodoroPhase.presets.first(where: { "preset:\($0.id)" == choice }) {
             applyPomodoroPreset(preset)
         } else if !choice.isEmpty, availableLibrary.contains(where: { $0.id == choice }) {
@@ -569,9 +587,12 @@ final class AppModel: ObservableObject {
     }
 
     func synchronizeAudio() {
-        do { try audio.update(levels, playing: isPlaying, master: masterVolume) }
+        let placed = pans.filter { levels[$0.key] != nil }
+        if placed.count != pans.count { pans = placed }
+        do { try audio.update(levels, pans: pans, playing: isPlaying, master: masterVolume) }
         catch { self.error = error.localizedDescription; isPlaying = false }
         UserDefaults.standard.set(levels, forKey: "levels")
+        UserDefaults.standard.set(pans, forKey: "pans")
         integration?.refreshNowPlaying()
     }
 

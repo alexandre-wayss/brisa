@@ -193,7 +193,8 @@ extension AppModel {
     private func perform(_ action: RoutineAction, in routine: Routine) {
         switch action.kind {
         case .playSound:
-            if let levels = routineLevels(for: action.choice) { applyMix(levels) }
+            if let mix = mixes.first(where: { "mix:\($0.id.uuidString)" == action.choice }) { applyMix(mix) }
+            else if let levels = routineLevels(for: action.choice) { applyMix(levels) }
         case .startFocus:
             if let id = UUID(uuidString: action.choice), pomodoroTasks.contains(where: { $0.id == id && !$0.isDone }) { selectPomodoroTask(id) }
             resetPomodoro()
