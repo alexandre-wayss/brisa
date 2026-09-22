@@ -13,6 +13,11 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      - name: Set version from tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" Brisa/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" Brisa/Info.plist
       - name: Build Brisa
         run: cd Brisa && ./Scripts/build.sh
       - name: Create DMG
