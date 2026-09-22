@@ -187,6 +187,46 @@ final class BrisaDesktopPlayer: NSObject, ObservableObject, NSWindowDelegate {
     func hide() { enabled = false }
 }
 
+private struct PlayerWaves: View {
+    let paused: Bool
+    let color: Color
+    let heldPhase: Double
+    let animationStart: Date?
+    @Binding var lastRenderedPhase: Double
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: paused)) { timeline in
+            let phase = currentPhase(at: timeline.date)
+            Canvas { context, size in
+                for layer in 0..<22 {
+                    context.stroke(wavePath(layer: layer, phase: phase, size: size),
+                                   with: .color(color.opacity(0.38)), lineWidth: 0.6)
+                }
+            }
+            .onChange(of: timeline.date) { _ in lastRenderedPhase = phase }
+        }
+    }
+
+    private func currentPhase(at date: Date) -> Double {
+        guard let start = animationStart else { return heldPhase }
+        return heldPhase + max(0, date.timeIntervalSince(start)) * 0.65
+    }
+
+    private func wavePath(layer: Int, phase: Double, size: CGSize) -> Path {
+        var path = Path()
+        let offset = Double(layer)
+        for step in 0...100 {
+            let t = Double(step) / 100
+            let wave: Double = sin(t * .pi * 3.5 + phase + offset * 0.06)
+            let second: Double = sin(t * .pi * 6 - phase * 0.6 + offset * 0.12)
+            let y: Double = size.height * (0.5 + wave * 0.21 + second * 0.09) + offset * 0.5
+            let point = CGPoint(x: t * size.width, y: y)
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        return path
+    }
+}
+
 private struct LiveBrisaPlayer: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var desktop = BrisaDesktopPlayer.shared
@@ -203,24 +243,10 @@ private struct LiveBrisaPlayer: View {
             RoundedRectangle(cornerRadius: 26)
                 .fill(LinearGradient(colors: [mint.opacity(0.14), themeStore.current.shade],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
-            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.isPlaying || reduceMotion)) { timeline in
-                let phase = animationStart.map { heldPhase + max(0, timeline.date.timeIntervalSince($0)) * 0.65 } ?? heldPhase
-                Canvas { context, size in
-                    for layer in 0..<22 {
-                        var path = Path()
-                        for step in 0...100 {
-                            let t = Double(step) / 100
-                            let wave = sin(t * .pi * 3.5 + phase + Double(layer) * 0.06)
-                            let second = sin(t * .pi * 6 - phase * 0.6 + Double(layer) * 0.12)
-                            let point = CGPoint(x: t * size.width,
-                                                y: size.height * (0.5 + wave * 0.21 + second * 0.09) + Double(layer) * 0.5)
-                            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
-                        }
-                        context.stroke(path, with: .color(mint.opacity(0.38)), lineWidth: 0.6)
-                    }
-                }
-                .onChange(of: timeline.date) { _ in lastRenderedPhase = phase }
-            }.frame(height: 90).offset(y: 24).allowsHitTesting(false)
+            PlayerWaves(paused: !model.isPlaying || reduceMotion, color: mint,
+                        heldPhase: heldPhase, animationStart: animationStart,
+                        lastRenderedPhase: $lastRenderedPhase)
+                .frame(height: 90).offset(y: 24).allowsHitTesting(false)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Label("brisa", systemImage: "wind").font(.system(size: 18, weight: .medium, design: .rounded))
