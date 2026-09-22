@@ -12,3 +12,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Brisa
         run: cd Brisa && ./Scripts/build.sh
+      - name: Run tests
+        run: cd Brisa && ./Scripts/test.sh
