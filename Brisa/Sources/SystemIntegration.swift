@@ -13,10 +13,12 @@ final class SystemIntegration {
         registerRemoteCommands()
         let center = NSWorkspace.shared.notificationCenter
         observers.append(center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.model.systemWillSleep() }
+            guard let model = self?.model else { return }
+            Task { @MainActor in model.systemWillSleep() }
         })
         observers.append(center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.model.systemDidWake() }
+            guard let model = self?.model else { return }
+            Task { @MainActor in model.systemDidWake() }
         })
     }
 
