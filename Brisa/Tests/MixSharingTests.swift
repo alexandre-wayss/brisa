@@ -63,6 +63,26 @@ enum MixSharingTests {
             try expectNil(MixSharing.decode(link: try unwrap(URL(string: "brisa://mix?d=not-json"))))
             try expectNil(MixSharing.decode(data: Data(repeating: 32, count: MixSharing.maxBytes + 1)))
         },
+        TestCase(name: "stereo positions travel with the mix") {
+            let mix = Mix(name: "Wide", levels: ["rain": 0.5, "wind": 0.3, "imported-1": 0.4], pans: ["rain": -0.456, "wind": 0, "imported-1": 1])
+            let shared = try unwrap(MixSharing.shared(from: mix)).mix
+            try expectEqual(shared.pans, ["rain": -0.46])
+            try expectEqual(MixSharing.decode(link: try unwrap(MixSharing.link(shared)))?.pans, ["rain": -0.46])
+        },
+        TestCase(name: "validated clamps positions and drops ones for missing sounds") {
+            let raw = SharedMix(name: "Pans", levels: ["rain": 0.5, "wind": 0.5], pans: ["rain": -4, "wind": .infinity, "pink": 0.5])
+            try expectEqual(MixSharing.validated(raw)?.pans, ["rain": -1])
+        },
+        TestCase(name: "links without positions still open") {
+            let json = #"{"v":1,"name":"Old","levels":{"rain":0.5}}"#
+            let mix = try unwrap(MixSharing.decode(data: Data(json.utf8)))
+            try expectNil(mix.pans)
+        },
+        TestCase(name: "saved mixes without positions still load") {
+            let json = #"[{"id":"6F9619FF-8B86-D011-B42D-00CF4FC964FF","name":"Old","levels":{"rain":0.5}}]"#
+            let mixes = try JSONDecoder().decode([Mix].self, from: Data(json.utf8))
+            try expectEqual(mixes.first?.pans, [:])
+        },
         TestCase(name: "base64URL uses URL-safe characters without padding") {
             let data = Data([0xfb, 0xff, 0xfe])
             let text = MixSharing.base64URL(data)

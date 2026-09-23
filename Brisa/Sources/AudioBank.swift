@@ -68,8 +68,15 @@ final class AudioBank {
  var importedURL: ((String) -> URL?)?
  /// Fade sounds in and out when the mix changes instead of cutting.
  var crossfadeEnabled = true
+ /// How far the living mix moves each volume (0 = off). Eases in and out so switching it never jumps.
+ var livingDepth = 0.0 { didSet { startTickerIfNeeded() } }
+ private var appliedDepth = 0.0
+ private var playing = false
  private var ramps: [String: VolumeRamp] = [:]
- private var rampTimer: Timer?
+ /// Each sound's volume before the living mix moves it.
+ private var baseVolumes: [String: Float] = [:]
+ private var ticker: Timer?
+ private var lastTick: TimeInterval = 0
  func buffer(_ id: String) throws -> AVAudioPCMBuffer {
   if let b = buffers[id] { return b }
   if id.hasPrefix("imported-") {
@@ -88,6 +95,8 @@ final class AudioBank {
    "realCity": "real/real-city.wav"
   ]
   if let path = recordings[id] {let b=seamlessLoop(try loadRecording(recordingURL(path)));buffers[id]=b;return b}
+  if let color = SoundSynthesis.NoiseColor(rawValue: id) {let b=SoundSynthesis.noiseBuffer(color);buffers[id]=b;return b}
+  if let tone = SoundSynthesis.binauralTones[id] {let b=SoundSynthesis.toneBuffer(tone);buffers[id]=b;return b}
   let rate = 24000.0, count = 24000 * 16
   let format = AVAudioFormat(standardFormatWithSampleRate:rate,channels:1)!
   let b = AVAudioPCMBuffer(pcmFormat:format,frameCapacity:AVAudioFrameCount(count))!
@@ -102,11 +111,6 @@ final class AudioBank {
    let swell = 0.6 + 0.4*sin(2 * .pi*t/8)
    var x: Double = 0
    switch id {
-   case "white": x=n*0.23
-   case "pink": x=pink*0.8 + low*0.5
-   case "brown": x=slow*3.2
-   case "green": x=(pink-low)*1.1
-   case "grey": x=low*1.4+n*0.09
    case "rain": x=n*0.12+pink*0.35
    case "heavy": x=n*0.22+low*0.7
    case "tent": x=pink*0.8+(n > 0.995 ? n*0.25 : 0)
@@ -134,20 +138,24 @@ final class AudioBank {
   for node in players.values { node.stop(); engine.detach(node) }
   players.removeAll()
   ramps.removeAll()
+  baseVolumes.removeAll()
+  stopTicker()
   engine.stop()
  }
  func discardBuffer(for id: String) { buffers.removeValue(forKey: id) }
- func update(_ levels: [String:Double], playing: Bool, master: Double) throws {
+ func update(_ levels: [String:Double], pans: [String:Double] = [:], playing: Bool, master: Double) throws {
+  self.playing = playing
   guard playing else {
    for node in players.values { node.pause() }
    ramps.removeAll()
+   stopTicker()
    return
   }
   for (id,level) in levels where level > 0 {
    if players[id] == nil {
     let b=try buffer(id), node=AVAudioPlayerNode(); engine.attach(node)
     engine.connect(node,to:engine.mainMixerNode,format:b.format)
-    node.volume = 0
+    node.volume = 0; baseVolumes[id] = 0
     node.scheduleBuffer(b,at:nil,options:.loops); players[id]=node
    }
   }
@@ -157,27 +165,49 @@ final class AudioBank {
   for (id,node) in players {
    let target = Float(levels[id] ?? 0)
    // Continue from where a running fade currently is, so quick successive changes never jump.
-   let current = ramps[id]?.value(at: now) ?? node.volume
+   let current = ramps[id]?.value(at: now) ?? baseVolumes[id] ?? 0
    if let ramp = Crossfade.plan(current: current, target: target, enabled: crossfadeEnabled, now: now) {
-    if ramp.duration == 0 { ramps[id] = nil; node.volume = target } else { ramps[id] = ramp; node.volume = current }
-   } else { ramps[id] = nil; node.volume = target }
+    if ramp.duration == 0 { ramps[id] = nil; baseVolumes[id] = target } else { ramps[id] = ramp; baseVolumes[id] = current }
+   } else { ramps[id] = nil; baseVolumes[id] = target }
+   // Binaural tones rely on each ear hearing its own pitch, so they always stay centred.
+   node.pan = SoundSynthesis.isBinaural(id) ? 0 : Float(min(max(pans[id] ?? 0, -1), 1))
+   applyVolume(id, node, at: now)
    if !node.isPlaying { node.play() }
   }
-  startRampTimerIfNeeded()
+  startTickerIfNeeded()
  }
 
- private func startRampTimerIfNeeded() {
-  guard !ramps.isEmpty, rampTimer == nil else { return }
-  rampTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.stepRamps() }
+ private func applyVolume(_ id: String, _ node: AVAudioPlayerNode, at time: TimeInterval) {
+  let base = baseVolumes[id] ?? 0
+  node.volume = min(1, base * Float(LivingMix.factor(for: id, at: time, depth: appliedDepth)))
  }
 
- private func stepRamps() {
+ /// Fast while a fade runs, slow while only the living mix drifts, stopped when nothing moves.
+ private func startTickerIfNeeded() {
+  let moving = livingDepth > 0 || appliedDepth > 0
+  let interval: TimeInterval? = !playing ? nil : !ramps.isEmpty ? 1.0 / 60 : moving ? 1.0 / 15 : nil
+  guard ticker?.timeInterval != interval else { return }
+  stopTicker()
+  guard let interval else { return }
+  lastTick = ProcessInfo.processInfo.systemUptime
+  ticker = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in self?.tick() }
+ }
+
+ private func stopTicker() { ticker?.invalidate(); ticker = nil }
+
+ private func tick() {
   let now = ProcessInfo.processInfo.systemUptime
+  let elapsed = now - lastTick
+  lastTick = now
+  // Reach a new living depth over a couple of seconds instead of at once.
+  let step = elapsed * 0.25
+  appliedDepth = livingDepth > appliedDepth ? min(livingDepth, appliedDepth + step) : max(livingDepth, appliedDepth - step)
   for (id, ramp) in ramps {
-   guard let node = players[id] else { ramps[id] = nil; continue }
-   node.volume = ramp.isFinished(at: now) ? ramp.target : ramp.value(at: now)
-   if ramp.isFinished(at: now) { ramps[id] = nil }
+   let finished = ramp.isFinished(at: now)
+   baseVolumes[id] = finished ? ramp.target : ramp.value(at: now)
+   if finished { ramps[id] = nil }
   }
-  if ramps.isEmpty { rampTimer?.invalidate(); rampTimer = nil }
+  for (id, node) in players { applyVolume(id, node, at: now) }
+  startTickerIfNeeded()
  }
 }

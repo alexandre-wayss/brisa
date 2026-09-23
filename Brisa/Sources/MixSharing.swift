@@ -6,6 +6,8 @@ struct SharedMix: Codable, Equatable {
     var v = 1
     var name: String
     var levels: [String: Double]
+    /// Optional, so links made by older versions still open and older versions ignore it.
+    var pans: [String: Double]?
 }
 
 enum MixSharing {
@@ -23,7 +25,8 @@ enum MixSharing {
         let kept = mix.levels.filter { ids.contains($0.key) && $0.value.isFinite && $0.value > 0 }
         guard !kept.isEmpty, kept.count <= maxSounds else { return nil }
         let levels = kept.mapValues { (min($0, 1) * 1000).rounded() / 1000 }
-        return (SharedMix(name: cleanName(mix.name) ?? "Shared mix", levels: levels), mix.levels.count - kept.count)
+        let pans = cleanPans(mix.pans.mapValues { ($0 * 100).rounded() / 100 }, for: levels)
+        return (SharedMix(name: cleanName(mix.name) ?? "Shared mix", levels: levels, pans: pans), mix.levels.count - kept.count)
     }
 
     static func fileData(_ mix: SharedMix) -> Data? {
@@ -65,8 +68,15 @@ enum MixSharing {
             let clamped = min(max(level, 0), 1)
             if clamped > 0 { levels[id] = clamped }
         }
-        guard !levels.isEmpty, levels.count <= maxSounds, raw.levels.count <= maxSounds * 2 else { return nil }
-        return SharedMix(name: name, levels: levels)
+        guard !levels.isEmpty, levels.count <= maxSounds, raw.levels.count <= maxSounds * 2,
+              (raw.pans?.count ?? 0) <= maxSounds * 2 else { return nil }
+        return SharedMix(name: name, levels: levels, pans: cleanPans(raw.pans ?? [:], for: levels))
+    }
+
+    /// Positions for sounds in the mix only, clamped to -1...1; centred sounds are left out. Nil when all are centred.
+    static func cleanPans(_ pans: [String: Double], for levels: [String: Double]) -> [String: Double]? {
+        let kept = pans.filter { levels[$0.key] != nil && $0.value.isFinite && $0.value != 0 }.mapValues { min(max($0, -1), 1) }
+        return kept.isEmpty ? nil : kept
     }
 
     static func cleanName(_ text: String) -> String? {
@@ -103,10 +113,10 @@ extension AppModel {
             name = "\(shared.name) (\(suffix))"
             suffix += 1
         }
-        let mix = Mix(name: name, levels: shared.levels)
+        let mix = Mix(name: name, levels: shared.levels, pans: shared.pans ?? [:])
         mixes.append(mix)
         persistMixes()
-        if play { applyMix(mix.levels) }
+        if play { applyMix(mix) }
         return mix
     }
 }
