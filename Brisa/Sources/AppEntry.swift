@@ -418,6 +418,15 @@ struct BrisaWidgetSettings: View {
                        detail: "Play and pause from your keyboard, AirPods or the Now Playing menu. Always on.") {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(themes.current.accent)
             }
+            if BrisaIntegration.isAvailable {
+                settingRow(symbol: "square.2.layers.3d", title: "Shortcuts and Focus",
+                           detail: "Play a mix or sound, pause, set the volume or start a focus session from the Shortcuts app, Siri or Spotlight. To play a mix when a Focus turns on, pick the Focus in System Settings and add Brisa under Focus filters. Brisa stops it again when the Focus ends.") {
+                    Button("Focus…") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Focus-Settings.extension") { NSWorkspace.shared.open(url) }
+                    }
+                    .help("Open Focus settings")
+                }
+            }
             settingRow(symbol: "headphones", title: "Audio output changes",
                        detail: "If you unplug headphones or switch devices, Brisa recovers on its own. Always on.") {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(themes.current.accent)

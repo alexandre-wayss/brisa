@@ -134,6 +134,9 @@ final class AppModel: ObservableObject {
     /// A mix that arrived from a file or link and is waiting for the user to confirm.
     @Published var pendingSharedMix: SharedMix?
     var isAutomaticChange = false
+    /// What a Focus filter turned on, so only that is stopped when the Focus ends.
+    var focusStartedSounds = false
+    var focusStartedSession = false
     @Published var routines: [Routine] = [] { didSet { persistRoutines() } }
     var lastRoutineCheck = Date()
     var lastRoutineCheckSaved = Date.distantPast
@@ -176,6 +179,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in self?.recoverAudioEngine() }
         }
         integration = SystemIntegration(model: self)
+        BrisaIntegration.refreshShortcutPhrases()
         YouTubeVideoPlayer.shared.onTitle = { [weak self] id, title in self?.updateVideoTitle(soundID: id, title: title) }
         synchronizeAudio()
     }
@@ -257,7 +261,11 @@ final class AppModel: ObservableObject {
         pans[soundID] = abs(clamped) < 0.04 ? nil : clamped
         synchronizeAudio()
     }
-    func persistMixes() { if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") } }
+    func persistMixes() {
+        if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") }
+        // Lets Siri and Spotlight offer "Play <mix name> in Brisa" for the current mixes.
+        BrisaIntegration.refreshShortcutPhrases()
+    }
     func persistImportedSounds() { if let data = try? JSONEncoder().encode(importedSounds) { UserDefaults.standard.set(data, forKey: "importedSounds") } }
 
     /// Sounds that can go into a mix. YouTube videos are played by the video window, never mixed.
