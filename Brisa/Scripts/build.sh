@@ -14,16 +14,51 @@ fi
 mkdir -p "${output_dir}/Contents/MacOS" "${output_dir}/Contents/Resources"
 
 source_files=("${project_dir}/Sources/"*.swift)
+deployment_target="14.0"
+target_triple="arm64-apple-macosx${deployment_target}"
+intents_dir="${project_dir}/build/AppIntents"
+mkdir -p "${intents_dir}"
 
-swiftc -parse-as-library "${source_files[@]}" \
+# The Shortcuts app finds Brisa's actions through Metadata.appintents, which Xcode normally generates.
+# The compiler records the App Intents types it sees, then Apple's processor turns that into the metadata.
+print -l '["AnyResolverProviding","AppEntity","AppEnum","AppIntent","AppIntentsPackage","AppShortcutProviding","AppShortcutsProvider","DynamicOptionsProvider","EntityQuery","IntentValueQuery","Resolver","TransientEntity","_IntentValueRepresentable"]' > "${intents_dir}/protocols.json"
+
+swiftc -parse-as-library -wmo "${source_files[@]}" \
   -o "${output_dir}/Contents/MacOS/Brisa" \
+  -module-name Brisa \
   -module-cache-path "${project_dir}/build/ModuleCache" \
+  -emit-const-values-path "${intents_dir}/Brisa.swiftconstvalues" \
+  -Xfrontend -const-gather-protocols-file -Xfrontend "${intents_dir}/protocols.json" \
   -framework SwiftUI \
   -framework AVFoundation \
   -framework AppKit \
+  -framework AppIntents \
   -framework Carbon \
   -framework UserNotifications \
-  -target arm64-apple-macosx14.0
+  -target "${target_triple}"
+
+print -l "${source_files[@]}" > "${intents_dir}/sources.txt"
+print -l "${intents_dir}/Brisa.swiftconstvalues" > "${intents_dir}/constvalues.txt"
+: > "${intents_dir}/empty.txt"
+xcrun appintentsmetadataprocessor \
+  --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")" \
+  --module-name Brisa \
+  --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" \
+  --xcode-version "$(xcodebuild -version | awk '/Build version/ { print $3 }')" \
+  --platform-family macOS \
+  --deployment-target "${deployment_target}" \
+  --bundle-identifier local.brisa.ambient \
+  --output "${output_dir}/Contents/Resources" \
+  --target-triple "${target_triple/macosx/macos}" \
+  --binary-file "${output_dir}/Contents/MacOS/Brisa" \
+  --source-file-list "${intents_dir}/sources.txt" \
+  --metadata-file-list "${intents_dir}/empty.txt" \
+  --static-metadata-file-list "${intents_dir}/empty.txt" \
+  --swift-const-vals-list "${intents_dir}/constvalues.txt" \
+  --compile-time-extraction \
+  --deployment-aware-processing \
+  --no-app-shortcuts-localization \
+  --force
 
 cp "${project_dir}/Info.plist" "${output_dir}/Contents/Info.plist"
 cp -R "${project_dir}/Resources/Audio" "${output_dir}/Contents/Resources/Audio"

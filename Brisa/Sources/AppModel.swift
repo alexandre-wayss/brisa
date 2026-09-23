@@ -125,6 +125,9 @@ final class AppModel: ObservableObject {
     /// A mix that arrived from a file or link and is waiting for the user to confirm.
     @Published var pendingSharedMix: SharedMix?
     var isAutomaticChange = false
+    /// What a Focus filter turned on, so only that is stopped when the Focus ends.
+    var focusStartedSounds = false
+    var focusStartedSession = false
     @Published var routines: [Routine] = [] { didSet { persistRoutines() } }
     var lastRoutineCheck = Date()
     var lastRoutineCheckSaved = Date.distantPast
@@ -165,6 +168,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in self?.recoverAudioEngine() }
         }
         integration = SystemIntegration(model: self)
+        BrisaShortcuts.updateAppShortcutParameters()
         YouTubeVideoPlayer.shared.onTitle = { [weak self] id, title in self?.updateVideoTitle(soundID: id, title: title) }
         synchronizeAudio()
     }
@@ -239,7 +243,11 @@ final class AppModel: ObservableObject {
     func applyMix(_ levels: [String: Double]) { self.levels = levels; isPlaying = true; recordUsage(levels.keys); synchronizeAudio() }
     func replaceWith(_ sound: Sound) { levels = [sound.id: 0.05]; isPlaying = true; recordUsage([sound.id]); synchronizeAudio() }
     func saveMix(named name: String) { mixes.append(Mix(name: name, levels: levels)); persistMixes() }
-    func persistMixes() { if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") } }
+    func persistMixes() {
+        if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") }
+        // Lets Siri and Spotlight offer "Play <mix name> in Brisa" for the current mixes.
+        BrisaShortcuts.updateAppShortcutParameters()
+    }
     func persistImportedSounds() { if let data = try? JSONEncoder().encode(importedSounds) { UserDefaults.standard.set(data, forKey: "importedSounds") } }
 
     /// Sounds that can go into a mix. YouTube videos are played by the video window, never mixed.
