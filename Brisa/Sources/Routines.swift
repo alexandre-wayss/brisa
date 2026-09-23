@@ -4,7 +4,7 @@ import UserNotifications
 /// One step of a routine. The meaning of `choice`, `number` and `text` depends on `kind`.
 struct RoutineAction: Codable, Identifiable, Equatable {
     enum Kind: String, Codable, CaseIterable {
-        case playSound, startFocus, startBreak, playVideo, sleepTimer, setVolume, notify, stopSounds, stopFocus
+        case playSound, startFocus, startBreak, playVideo, sleepTimer, setVolume, notify, stopSounds, stopFocus, startMode, endMode
 
         var title: String {
             switch self {
@@ -17,6 +17,8 @@ struct RoutineAction: Codable, Identifiable, Equatable {
             case .notify: return "Show a reminder"
             case .stopSounds: return "Stop the sounds"
             case .stopFocus: return "Pause the focus timer"
+            case .startMode: return "Start a mode"
+            case .endMode: return "End the current mode"
             }
         }
 
@@ -31,13 +33,16 @@ struct RoutineAction: Codable, Identifiable, Equatable {
             case .notify: return "bell"
             case .stopSounds: return "stop.circle"
             case .stopFocus: return "pause.circle"
+            case .startMode: return "rectangle.3.group"
+            case .endMode: return "rectangle.3.group.bubble"
             }
         }
     }
 
     var id = UUID()
     var kind: Kind
-    /// playSound: a sound source (see `RoutineSounds`); startFocus: a task ID or empty; startBreak: "short" or "long"; playVideo: a video's library ID.
+    /// playSound: a sound source (see `RoutineSounds`); startFocus: a task ID or empty; startBreak: "short" or "long";
+    /// playVideo: a video's library ID; startMode: a mode's ID.
     var choice: String = ""
     /// sleepTimer: minutes; setVolume: percent.
     var number: Int = 0
@@ -153,6 +158,12 @@ extension AppModel {
         return availableLibrary.contains { $0.id == choice } ? [choice: 0.05] : nil
     }
 
+    /// Plays a sound choice; saved mixes keep their stereo positions.
+    func playSoundChoice(_ choice: String) {
+        if let mix = mixes.first(where: { "mix:\($0.id.uuidString)" == choice }) { applyMix(mix) }
+        else if let levels = routineLevels(for: choice) { applyMix(levels) }
+    }
+
     func routineSummary(_ action: RoutineAction) -> String {
         switch action.kind {
         case .playSound: return "Play \(RoutineSounds.title(for: action.choice, in: self))"
@@ -166,6 +177,8 @@ extension AppModel {
         case .notify: return action.text.isEmpty ? "Show a reminder" : "Remind: \(action.text)"
         case .stopSounds: return "Stop the sounds"
         case .stopFocus: return "Pause the focus timer"
+        case .startMode: return "Start \(modes.first { $0.id.uuidString == action.choice }?.name ?? "a deleted mode")"
+        case .endMode: return "End the current mode"
         }
     }
 
@@ -193,8 +206,7 @@ extension AppModel {
     private func perform(_ action: RoutineAction, in routine: Routine) {
         switch action.kind {
         case .playSound:
-            if let mix = mixes.first(where: { "mix:\($0.id.uuidString)" == action.choice }) { applyMix(mix) }
-            else if let levels = routineLevels(for: action.choice) { applyMix(levels) }
+            playSoundChoice(action.choice)
         case .startFocus:
             if let id = UUID(uuidString: action.choice), pomodoroTasks.contains(where: { $0.id == id && !$0.isDone }) { selectPomodoroTask(id) }
             resetPomodoro()
@@ -219,6 +231,10 @@ extension AppModel {
             synchronizeAudio()
         case .stopFocus:
             pausePomodoro()
+        case .startMode:
+            if let mode = modes.first(where: { $0.id.uuidString == action.choice }) { startMode(mode) }
+        case .endMode:
+            endMode()
         }
     }
 
