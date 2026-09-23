@@ -84,7 +84,7 @@ struct PlayMixIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         let model = AppModel.shared
         guard let saved = model.mixes.first(where: { $0.id == mix.id }) else { throw BrisaIntentError.mixNotFound }
-        model.applyMix(saved.levels)
+        model.applyMix(saved)
         return .result(dialog: "Playing \(saved.name).")
     }
 }
@@ -216,7 +216,7 @@ extension AppModel {
         if active {
             if let mix {
                 isAutomaticChange = true
-                applyMix(mix.levels)
+                applyMix(mix)
                 isAutomaticChange = false
                 focusStartedSounds = true
             }

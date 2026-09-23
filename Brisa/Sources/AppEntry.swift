@@ -273,7 +273,7 @@ private struct LiveBrisaPlayer: View {
                         Divider()
                         Menu("My mixes") {
                             ForEach(model.mixes) { mix in
-                                Button(mix.name) { model.applyMix(mix.levels) }
+                                Button(mix.name) { model.applyMix(mix) }
                             }
                         }
                     }
@@ -398,6 +398,17 @@ struct BrisaWidgetSettings: View {
             settingRow(symbol: "waveform.path", title: "Crossfade between mixes",
                        detail: "Sounds fade in and out when you switch mixes instead of cutting. Turn off for instant changes.") {
                 Toggle("", isOn: $model.crossfadeEnabled).labelsHidden().toggleStyle(.switch)
+            }
+            settingRow(symbol: "water.waves", title: "Living mix",
+                       detail: "Each sound's volume drifts slowly up and down, so long sessions feel less static. Also on the player.") {
+                Toggle("", isOn: $model.livingMixEnabled).labelsHidden().toggleStyle(.switch)
+            }
+            if model.livingMixEnabled {
+                Picker("How much sounds move", selection: $model.livingMixIntensity) {
+                    ForEach(LivingMix.Intensity.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
             }
             settingRow(symbol: "play.rectangle", title: "Small video window",
                        detail: "YouTube videos play in a compact window that stays visible but out of the way. YouTube requires the video to stay on screen while it plays.") {

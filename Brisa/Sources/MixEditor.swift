@@ -33,6 +33,7 @@ struct MixEditor: View {
     Button("Cancel"){dismiss()}.keyboardShortcut(.cancelAction)
     Button("Save changes"){
      draft.name=draft.name.trimmingCharacters(in:.whitespacesAndNewlines)
+     draft.pans=draft.pans.filter{draft.levels[$0.key] != nil}
      onSave(draft);dismiss()
     }.keyboardShortcut(.defaultAction).disabled(draft.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || draft.levels.isEmpty)
    }

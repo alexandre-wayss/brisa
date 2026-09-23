@@ -32,7 +32,7 @@ mkdir -p "${intents_dir}"
 # The compiler records the App Intents types it sees, then Apple's processor turns that into the metadata.
 print -l '["AnyResolverProviding","AppEntity","AppEnum","AppIntent","AppIntentsPackage","AppShortcutProviding","AppShortcutsProvider","DynamicOptionsProvider","EntityQuery","IntentValueQuery","Resolver","TransientEntity","_IntentValueRepresentable"]' > "${intents_dir}/protocols.json"
 
-swiftc -parse-as-library -wmo "${source_files[@]}" \
+swiftc -O -parse-as-library -wmo "${source_files[@]}" \
   -o "${output_dir}/Contents/MacOS/Brisa" \
   -module-name Brisa \
   -module-cache-path "${project_dir}/build/ModuleCache" \

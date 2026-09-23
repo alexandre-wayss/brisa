@@ -11,6 +11,8 @@ Brisa is a native macOS ambient-sound app for focus, rest, and sleep. Build a so
 ## Features
 
 - Ambient library: noise, water, nature, and indoor environments.
+- Noise colours (white, pink, brown, deep brown, green, grey) generated in wide stereo with accurate spectra, and binaural beat tones under **Tones** (use headphones).
+- Place each sound left or right in the stereo field, and turn on **Living mix** so volumes drift slowly and long sessions feel less static.
 - Saved, editable mixes; favorites; timer; and individual sound levels. **Recent** and **Most used** shelves remember what you actually play, and sounds crossfade when you switch mixes.
 - **Routines** run things at set times: start a focus session, play a mix or a video, set a sleep timer, change the volume, or show a reminder, on the days you choose. Templates included (morning focus, lunch break, wind down, gentle wake-up). Routines that came due while the Mac slept still run on wake, up to 15 minutes late.
 - Share a mix as a `.brisamix` file or a `brisa://mix?d=…` link (Share button on any saved mix, **Import mix** on My mixes). Only Brisa's built-in sounds travel; anything received is validated and confirmed before it is added.

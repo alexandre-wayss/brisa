@@ -6,6 +6,7 @@ let library: [Sound] = [
  .init(id:"white",name:"White Noise",icon:"waveform",category:"Noise",detail:"Even and immersive"),
  .init(id:"pink",name:"Pink Noise",icon:"waveform.path",category:"Noise",detail:"Soft and balanced"),
  .init(id:"brown",name:"Brown Noise",icon:"waveform.path.ecg",category:"Noise",detail:"Low and deep"),
+ .init(id:"deepBrown",name:"Deep Brown Noise",icon:"water.waves.and.arrow.down",category:"Noise",detail:"A soft, distant rumble"),
  .init(id:"green",name:"Green Noise",icon:"leaf",category:"Noise",detail:"Gentle mid frequencies"),
  .init(id:"grey",name:"Grey Noise",icon:"aqi.medium",category:"Noise",detail:"Wide filtered texture"),
  .init(id:"rain",name:"Light Rain",icon:"cloud.drizzle",category:"Water",detail:"A quiet afternoon"),
@@ -28,6 +29,24 @@ let library: [Sound] = [
  .init(id:"coffeeShop",name:"Coffee Shop",icon:"cup.and.saucer.fill",category:"Spaces",detail:"Real field recording · CC0"),
  .init(id:"cabin",name:"Airplane Cabin",icon:"airplane",category:"Spaces",detail:"A calm journey"),
  .init(id:"train",name:"Train",icon:"tram",category:"Spaces",detail:"Rhythm on the rails"),
- .init(id:"keyboard",name:"Keyboard",icon:"keyboard",category:"Spaces",detail:"Small rhythmic taps")
+ .init(id:"keyboard",name:"Keyboard",icon:"keyboard",category:"Spaces",detail:"Small rhythmic taps"),
+ .init(id:"binauralDelta",name:"Deep Rest",icon:"moon.zzz",category:"Tones",detail:"Binaural 2.5 Hz · use headphones"),
+ .init(id:"binauralTheta",name:"Calm Mind",icon:"sparkles",category:"Tones",detail:"Binaural 6 Hz · use headphones"),
+ .init(id:"binauralAlpha",name:"Relaxed Focus",icon:"brain.head.profile",category:"Tones",detail:"Binaural 10 Hz · use headphones"),
+ .init(id:"binauralBeta",name:"Alert Focus",icon:"bolt",category:"Tones",detail:"Binaural 16 Hz · use headphones")
 ]
-struct Mix: Codable, Identifiable { var id = UUID(); var name: String; var levels: [String: Double] }
+struct Mix: Codable, Identifiable {
+ var id = UUID(); var name: String; var levels: [String: Double]
+ /// Stereo position per sound, from -1 (left) to 1 (right). Missing means centred.
+ var pans: [String: Double] = [:]
+}
+extension Mix {
+ enum CodingKeys: String, CodingKey { case id, name, levels, pans }
+ /// Mixes saved before stereo positions existed have no `pans`.
+ init(from decoder: Decoder) throws {
+  let c = try decoder.container(keyedBy: CodingKeys.self)
+  id = try c.decode(UUID.self, forKey: .id); name = try c.decode(String.self, forKey: .name)
+  levels = try c.decode([String: Double].self, forKey: .levels)
+  pans = try c.decodeIfPresent([String: Double].self, forKey: .pans) ?? [:]
+ }
+}

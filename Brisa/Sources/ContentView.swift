@@ -20,6 +20,7 @@ struct ContentView: View {
  @ObservedObject private var videoPlayer=YouTubeVideoPlayer.shared
  @State private var showMixFileImporter=false
  @State private var notice:String?
+ @State private var panEditing:String?
  var mixFileType:UTType { UTType(filenameExtension:MixSharing.fileExtension,conformingTo:.json) ?? .json }
  func flash(_ text:String){notice=text;DispatchQueue.main.asyncAfter(deadline:.now()+3.5){if notice==text{notice=nil}}}
  func copyMixLink(_ mix:Mix){
@@ -43,7 +44,7 @@ struct ContentView: View {
   guard let data=try? Data(contentsOf:url),let shared=MixSharing.decode(data:data) else {flash("That file isn't a valid Brisa mix.");return}
   model.pendingSharedMix=shared
  }
- let categories=["All sounds","Favorites","Recent","Most used","Noise","Water","Nature","Spaces","Imported","My mixes"]
+ let categories=["All sounds","Favorites","Recent","Most used","Noise","Water","Nature","Spaces","Tones","Imported","My mixes"]
  var videos:[ImportedSound] {
   guard category=="All sounds" || category=="Imported" else {return []}
   return model.youtubeVideos.filter{search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.attribution.localizedCaseInsensitiveContains(search)}
@@ -89,7 +90,7 @@ struct ContentView: View {
      Button{withAnimation(.easeInOut(duration:0.2)){category=filter}}label:{HStack(spacing:6){Image(systemName:icon(filter));Text(filter);if filter=="Favorites" && !model.favorites.isEmpty {Text("\(model.favorites.count)").foregroundStyle(category==filter ? Color.black.opacity(0.55):.secondary)}}.font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(category==filter ? accent:surface.opacity(0.07),in:Capsule()).foregroundStyle(category==filter ? onAccent:.primary)}.buttonStyle(.plain)
     }}.padding(.horizontal,34)
    }.padding(.bottom,20)
-   HStack(alignment:.firstTextBaseline){VStack(alignment:.leading,spacing:4){Text(category).font(.system(size:30,weight:.semibold,design:.rounded));Text(category=="My mixes" ? "Your saved soundscapes." : "Select, combine, and tune at your own pace.").font(.system(size:13)).foregroundStyle(.secondary)};Spacer()}.padding(.horizontal,34).padding(.bottom,18)
+   HStack(alignment:.firstTextBaseline){VStack(alignment:.leading,spacing:4){Text(category).font(.system(size:30,weight:.semibold,design:.rounded));Text(category=="My mixes" ? "Your saved soundscapes." : category=="Tones" ? "Binaural beats: each ear hears a slightly different pitch. Use headphones." : "Select, combine, and tune at your own pace.").font(.system(size:13)).foregroundStyle(.secondary)};Spacer()}.padding(.horizontal,34).padding(.bottom,18)
    ScrollView {
     VStack(alignment:.leading,spacing:20){
      if category=="All sounds" && search.isEmpty {
@@ -109,14 +110,14 @@ struct ContentView: View {
        HStack(spacing:16){
         Button{
          if model.isPlaying && model.levels == mix.levels {model.isPlaying=false;model.synchronizeAudio()}
-         else {model.applyMix(mix.levels)}
+         else {model.applyMix(mix)}
         }label:{
          Image(systemName:model.isPlaying && model.levels == mix.levels ? "pause.fill":"play.fill")
           .font(.system(size:15)).foregroundStyle(onAccent)
           .frame(width:40,height:40).background(accent,in:Circle())
         }.buttonStyle(.plain)
          .accessibilityLabel(model.isPlaying && model.levels == mix.levels ? "Pause \(mix.name)":"Play \(mix.name)")
-        Button{model.applyMix(mix.levels)}label:{
+        Button{model.applyMix(mix)}label:{
          VStack(alignment:.leading,spacing:5){Text(mix.name).font(.system(size:15,weight:.medium));Text("\(mix.levels.count) sons").font(.caption).foregroundStyle(.secondary)}
         }.buttonStyle(.plain)
         Spacer()
@@ -170,23 +171,50 @@ struct ContentView: View {
     let wasCurrent=model.levels == model.mixes[index].levels
     model.mixes[index]=updated
     model.persistMixes()
-    if wasCurrent {model.levels=updated.levels;model.synchronizeAudio()}
+    if wasCurrent {model.levels=updated.levels;model.pans=updated.pans;model.synchronizeAudio()}
    }
   }
  }
  .alert("Could not start audio",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("OK"){model.error=nil}}message:{Text(model.error ?? "")}
  .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true } }
  }
- func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Recent":return "clock";case "Most used":return "chart.bar";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
+ func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Recent":return "clock";case "Most used":return "chart.bar";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Tones":return "headphones";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
  func empty(_ title:String,_ detail:String)->some View {VStack(spacing:12){Image(systemName:"wind").font(.largeTitle).foregroundStyle(accent);Text(title).font(.title3);Text(detail).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(.vertical,70)}
  func preset(_ name:String,_ symbol:String,_ levels:[String:Double])->some View {Button{model.applyMix(levels)}label:{HStack{Image(systemName:symbol).foregroundStyle(accent);Text(name).font(.system(size:12,weight:.medium));Spacer();Image(systemName:"arrow.up.right").font(.caption).foregroundStyle(.secondary)}.padding(18).frame(maxWidth:.infinity).background(accent.opacity(0.07),in:RoundedRectangle(cornerRadius:13))}.buttonStyle(.plain)}
  func card(_ sound:Sound)->some View {
  let active=model.levels[sound.id] != nil
  return VStack(alignment:.leading,spacing:15){
-  HStack{Button{model.toggle(sound.id)}label:{Image(systemName:sound.icon).font(.system(size:27,weight:.light)).foregroundStyle(active ? accent:.secondary).frame(width:44,height:38)}.buttonStyle(.plain).accessibilityLabel("Toggle \(sound.name)");Spacer();Button{model.setFavorite(sound.id)}label:{Image(systemName:model.favorites.contains(sound.id) ? "heart.fill":"heart").foregroundStyle(model.favorites.contains(sound.id) ? accent:Color.secondary)}.buttonStyle(.plain).accessibilityLabel("Favorite \(sound.name)");if let imported=model.importedSounds.first(where:{$0.id==sound.id}) {Menu { if let url=URL(string:imported.originalURL) { Button("Open source") { NSWorkspace.shared.open(url) } }; Button("Relink audio…") { relinkingSound=imported }; Button("Remove imported sound",role:.destructive){model.removeImportedSound(imported)} } label:{Image(systemName:"ellipsis.circle")}.menuStyle(.borderlessButton)}}
+  HStack{Button{model.toggle(sound.id)}label:{Image(systemName:sound.icon).font(.system(size:27,weight:.light)).foregroundStyle(active ? accent:.secondary).frame(width:44,height:38)}.buttonStyle(.plain).accessibilityLabel("Toggle \(sound.name)");Spacer();if active && !SoundSynthesis.isBinaural(sound.id) {panButton(sound)};Button{model.setFavorite(sound.id)}label:{Image(systemName:model.favorites.contains(sound.id) ? "heart.fill":"heart").foregroundStyle(model.favorites.contains(sound.id) ? accent:Color.secondary)}.buttonStyle(.plain).accessibilityLabel("Favorite \(sound.name)");if let imported=model.importedSounds.first(where:{$0.id==sound.id}) {Menu { if let url=URL(string:imported.originalURL) { Button("Open source") { NSWorkspace.shared.open(url) } }; Button("Relink audio…") { relinkingSound=imported }; Button("Remove imported sound",role:.destructive){model.removeImportedSound(imported)} } label:{Image(systemName:"ellipsis.circle")}.menuStyle(.borderlessButton)}}
   Button{model.toggle(sound.id)}label:{VStack(alignment:.leading,spacing:5){Text(sound.name).font(.system(size:15,weight:.medium));Text(sound.detail).font(.system(size:11)).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain)
   HStack{if active {Slider(value:Binding(get:{model.levels[sound.id] ?? 0.5},set:{model.levels[sound.id]=$0;model.synchronizeAudio()}),in:0...1).accessibilityLabel("Volume for \(sound.name)");Text("\(Int((model.levels[sound.id] ?? 0)*100))").font(.system(size:10,design:.monospaced)).foregroundStyle(accent).frame(width:25)}else{Text("Add to mix").font(.system(size:10)).foregroundStyle(.tertiary);Spacer();Button{model.toggle(sound.id)}label:{Image(systemName:"plus.circle").foregroundStyle(.secondary)}.buttonStyle(.plain)}}.frame(height:20)
  }.padding(18).background(.ultraThinMaterial,in:RoundedRectangle(cornerRadius:20)).overlay(RoundedRectangle(cornerRadius:20).fill(active ? accent.opacity(0.12):surface.opacity(0.025)).allowsHitTesting(false)).overlay(RoundedRectangle(cornerRadius:20).stroke(active ? accent.opacity(0.55):surface.opacity(0.13),lineWidth:1).allowsHitTesting(false)).shadow(color:.black.opacity(0.14),radius:14,y:7)
+ }
+ func panText(_ pan:Double)->String {let amount=Int((abs(pan)*100).rounded());return amount==0 ? "C":(pan<0 ? "L\(amount)":"R\(amount)")}
+ func panDescription(_ pan:Double)->String {let amount=Int((abs(pan)*100).rounded());return amount==0 ? "centre":"\(amount)% \(pan<0 ? "left":"right")"}
+ func panButton(_ sound:Sound)->some View {
+  let pan=model.pans[sound.id] ?? 0
+  return Button{panEditing=sound.id}label:{HStack(spacing:3){Image(systemName:"arrow.left.and.right").font(.system(size:8,weight:.bold));Text(panText(pan)).font(.system(size:10,weight:.semibold).monospacedDigit())}.foregroundStyle(pan==0 ? Color.secondary:accent).padding(.horizontal,7).padding(.vertical,4).background(surface.opacity(0.08),in:Capsule())}
+   .buttonStyle(.plain).help("Stereo position").accessibilityLabel("Stereo position for \(sound.name)").accessibilityValue(panDescription(pan))
+   .popover(isPresented:Binding(get:{panEditing==sound.id},set:{if !$0 {panEditing=nil}}),arrowEdge:.bottom){panEditor(sound)}
+ }
+ func panEditor(_ sound:Sound)->some View {
+  let pan=model.pans[sound.id] ?? 0
+  return VStack(alignment:.leading,spacing:12){
+   HStack{Text("Stereo position").font(.headline);Spacer();Text(panDescription(pan).capitalized).font(.caption.monospacedDigit()).foregroundStyle(.secondary)}
+   HStack(spacing:8){
+    Text("L").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+    Slider(value:Binding(get:{model.pans[sound.id] ?? 0},set:{model.setPan($0,for:sound.id)}),in:-1...1).accessibilityLabel("Stereo position for \(sound.name)").accessibilityValue(panDescription(pan))
+    Text("R").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+   }
+   HStack{
+    Button("Left"){model.setPan(-0.7,for:sound.id)}
+    Spacer()
+    Button("Centre"){model.setPan(0,for:sound.id)}
+    Spacer()
+    Button("Right"){model.setPan(0.7,for:sound.id)}
+   }.controlSize(.small)
+   Text("Place \(sound.name.lowercased()) around you. Best with headphones.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+  }.padding(16).frame(width:270).tint(accent)
  }
  var player:some View {
  HStack(spacing:18){
@@ -194,6 +222,7 @@ struct ContentView: View {
   VStack(alignment:.leading,spacing:6){HStack(spacing:7){Circle().fill(model.isPlaying ? accent:Color.secondary).frame(width:7,height:7);Text(model.isPlaying ? "Now playing" : "Ready to play").font(.system(size:14,weight:.semibold))};Text("\(model.levels.count) sounds in your mix").font(.system(size:11)).foregroundStyle(.secondary)}
   Spacer(minLength:8)
   VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.masterVolume,in:0...1).frame(width:130).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume");Text("\(Int(model.masterVolume*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};Text(model.isPomodoroRunning ? "\(model.pomodoroPhase.title) · \(model.pomodoroTimeText)" : (model.remainingSeconds>0 ? String(format:"Ends in %02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"No timer")).font(.system(size:10)).foregroundStyle(.secondary)}
+  Button{model.livingMixEnabled.toggle()}label:{Image(systemName:"water.waves").font(.system(size:15,weight:.medium)).foregroundStyle(model.livingMixEnabled ? accent:.primary).frame(width:38,height:38).background(model.livingMixEnabled ? accent.opacity(0.22):surface.opacity(0.10),in:Circle())}.buttonStyle(.plain).help(model.livingMixEnabled ? "Living mix is on: volumes drift gently":"Living mix: let volumes drift gently").accessibilityLabel("Living mix").accessibilityValue(model.livingMixEnabled ? "On":"Off")
   Menu{Button("Off"){model.remainingSeconds=0;model.synchronizeAudio()};ForEach([5,15,25,30,60,90],id:\.self){m in Button("\(m) minutes"){model.remainingSeconds=m*60;model.synchronizeAudio()}}}label:{Image(systemName:"timer").font(.system(size:15,weight:.medium)).frame(width:38,height:38).background(surface.opacity(0.10),in:Circle())}.menuStyle(.borderlessButton).fixedSize()
   Button("Clear"){model.levels=[:];model.isPlaying=false;model.synchronizeAudio()}.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).disabled(model.levels.isEmpty)
   Button{save=true}label:{Image(systemName:"plus").font(.system(size:13,weight:.bold)).frame(width:38,height:38).background(accent.opacity(0.20),in:Circle())}.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel("Save mix").disabled(model.levels.isEmpty)

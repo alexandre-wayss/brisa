@@ -31,6 +31,7 @@
 		A5E27C19D3B8406F1C7A9E32 /* Routines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B90D6A2E8F153C7D2A6B841 /* Routines.swift */; };
 		C3D8E1F2A4B5C6D7E8F90A1B /* Main.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E9F2A3B5C6D7E8F90A1B2C /* Main.swift */; };
 		A71C25D6E8F90A1B2C3D4E5F /* BrisaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82D36E7F90A1B2C3D4E5F60 /* BrisaIntents.swift */; };
+		E5FA03B4C6D7E8F90A1B2C3D /* SoundSynthesis.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60B14C5D7E8F90A1B2C3D4E /* SoundSynthesis.swift */; };
 		E1B84A6D0C3F27958B4E1A70 /* RoutinesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2C9D5A13E846B0C9D3F5A2 /* RoutinesView.swift */; };
 /* End PBXBuildFile section */
 
@@ -60,6 +61,7 @@
 		4B90D6A2E8F153C7D2A6B841 /* Routines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Routines.swift; sourceTree = "<group>"; };
 		D4E9F2A3B5C6D7E8F90A1B2C /* Main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Main.swift; sourceTree = "<group>"; };
 		B82D36E7F90A1B2C3D4E5F60 /* BrisaIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrisaIntents.swift; sourceTree = "<group>"; };
+		F60B14C5D7E8F90A1B2C3D4E /* SoundSynthesis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundSynthesis.swift; sourceTree = "<group>"; };
 		7F2C9D5A13E846B0C9D3F5A2 /* RoutinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutinesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -107,6 +109,7 @@
 				4B90D6A2E8F153C7D2A6B841 /* Routines.swift */,
 				D4E9F2A3B5C6D7E8F90A1B2C /* Main.swift */,
 				B82D36E7F90A1B2C3D4E5F60 /* BrisaIntents.swift */,
+				F60B14C5D7E8F90A1B2C3D4E /* SoundSynthesis.swift */,
 				7F2C9D5A13E846B0C9D3F5A2 /* RoutinesView.swift */,
 			);
 			path = Sources;
@@ -235,6 +238,7 @@
 				A5E27C19D3B8406F1C7A9E32 /* Routines.swift in Sources */,
 				C3D8E1F2A4B5C6D7E8F90A1B /* Main.swift in Sources */,
 				A71C25D6E8F90A1B2C3D4E5F /* BrisaIntents.swift in Sources */,
+				E5FA03B4C6D7E8F90A1B2C3D /* SoundSynthesis.swift in Sources */,
 				E1B84A6D0C3F27958B4E1A70 /* RoutinesView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
