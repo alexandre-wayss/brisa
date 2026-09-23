@@ -13,6 +13,15 @@ fi
 
 mkdir -p "${output_dir}/Contents/MacOS" "${output_dir}/Contents/Resources"
 
+# Shortcuts and Focus filters only talk to apps signed by a developer team. Use BRISA_SIGN_IDENTITY,
+# else the first Developer ID or Apple Development certificate in the keychain, else an ad-hoc signature.
+sign_identity="${BRISA_SIGN_IDENTITY:-}"
+if [[ -z "${sign_identity}" ]]; then
+  identities="$(security find-identity -v -p codesigning 2>/dev/null)"
+  sign_identity="$(print -r -- "${identities}" | grep -m1 '"Developer ID Application' | sed -E 's/.*"(.*)"/\1/' || true)"
+  [[ -z "${sign_identity}" ]] && sign_identity="$(print -r -- "${identities}" | grep -m1 '"Apple Development' | sed -E 's/.*"(.*)"/\1/' || true)"
+fi
+
 source_files=("${project_dir}/Sources/"*.swift)
 deployment_target="14.0"
 target_triple="arm64-apple-macosx${deployment_target}"
@@ -37,28 +46,31 @@ swiftc -parse-as-library -wmo "${source_files[@]}" \
   -framework UserNotifications \
   -target "${target_triple}"
 
-print -l "${source_files[@]}" > "${intents_dir}/sources.txt"
-print -l "${intents_dir}/Brisa.swiftconstvalues" > "${intents_dir}/constvalues.txt"
-: > "${intents_dir}/empty.txt"
-xcrun appintentsmetadataprocessor \
-  --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")" \
-  --module-name Brisa \
-  --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" \
-  --xcode-version "$(xcodebuild -version | awk '/Build version/ { print $3 }')" \
-  --platform-family macOS \
-  --deployment-target "${deployment_target}" \
-  --bundle-identifier local.brisa.ambient \
-  --output "${output_dir}/Contents/Resources" \
-  --target-triple "${target_triple/macosx/macos}" \
-  --binary-file "${output_dir}/Contents/MacOS/Brisa" \
-  --source-file-list "${intents_dir}/sources.txt" \
-  --metadata-file-list "${intents_dir}/empty.txt" \
-  --static-metadata-file-list "${intents_dir}/empty.txt" \
-  --swift-const-vals-list "${intents_dir}/constvalues.txt" \
-  --compile-time-extraction \
-  --deployment-aware-processing \
-  --no-app-shortcuts-localization \
-  --force
+# Without a team signature macOS refuses to connect, so leave the actions out rather than show broken ones.
+if [[ -n "${sign_identity}" ]]; then
+  print -l "${source_files[@]}" > "${intents_dir}/sources.txt"
+  print -l "${intents_dir}/Brisa.swiftconstvalues" > "${intents_dir}/constvalues.txt"
+  : > "${intents_dir}/empty.txt"
+  xcrun appintentsmetadataprocessor \
+    --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")" \
+    --module-name Brisa \
+    --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" \
+    --xcode-version "$(xcodebuild -version | awk '/Build version/ { print $3 }')" \
+    --platform-family macOS \
+    --deployment-target "${deployment_target}" \
+    --bundle-identifier local.brisa.ambient \
+    --output "${output_dir}/Contents/Resources" \
+    --target-triple "${target_triple/macosx/macos}" \
+    --binary-file "${output_dir}/Contents/MacOS/Brisa" \
+    --source-file-list "${intents_dir}/sources.txt" \
+    --metadata-file-list "${intents_dir}/empty.txt" \
+    --static-metadata-file-list "${intents_dir}/empty.txt" \
+    --swift-const-vals-list "${intents_dir}/constvalues.txt" \
+    --compile-time-extraction \
+    --deployment-aware-processing \
+    --no-app-shortcuts-localization \
+    --force
+fi
 
 cp "${project_dir}/Info.plist" "${output_dir}/Contents/Info.plist"
 cp -R "${project_dir}/Resources/Audio" "${output_dir}/Contents/Resources/Audio"
@@ -72,19 +84,11 @@ rm -rf "${output_dir}"
 ditto --norsrc --noextattr --noacl "${clean_app}" "${output_dir}"
 rm -rf "${clean_app:h}"
 xattr -cr "${output_dir}"
-# Shortcuts and Focus filters only talk to apps signed by a developer team. Use BRISA_SIGN_IDENTITY,
-# else the first Developer ID or Apple Development certificate in the keychain, else an ad-hoc signature.
-sign_identity="${BRISA_SIGN_IDENTITY:-}"
-if [[ -z "${sign_identity}" ]]; then
-  identities="$(security find-identity -v -p codesigning 2>/dev/null)"
-  sign_identity="$(print -r -- "${identities}" | grep -m1 '"Developer ID Application' | sed -E 's/.*"(.*)"/\1/' || true)"
-  [[ -z "${sign_identity}" ]] && sign_identity="$(print -r -- "${identities}" | grep -m1 '"Apple Development' | sed -E 's/.*"(.*)"/\1/' || true)"
-fi
 if [[ -n "${sign_identity}" ]]; then
   print "Assinando com: ${sign_identity}"
   codesign --force --sign "${sign_identity}" --options runtime --identifier local.brisa.ambient "${output_dir}"
 else
-  print "Nenhum certificado encontrado: assinatura ad-hoc. Atalhos e filtros de Foco não vão funcionar neste build."
+  print "Nenhum certificado encontrado: assinatura ad-hoc, sem Atalhos nem filtros de Foco neste build."
   codesign --force --sign - --identifier local.brisa.ambient "${output_dir}"
 fi
 codesign --verify --deep --strict "${output_dir}"

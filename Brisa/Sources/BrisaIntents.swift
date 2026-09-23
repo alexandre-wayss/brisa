@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import Security
 
 // Actions for the Shortcuts app, Siri and Spotlight, plus a Focus filter.
 // `Scripts/build.sh` runs Apple's metadata processor so the system can find them.
@@ -230,6 +231,28 @@ extension AppModel {
         if focusStartedSession, isPomodoroRunning { pausePomodoro() }
         focusStartedSounds = false
         focusStartedSession = false
+    }
+}
+
+// MARK: - Availability
+
+enum BrisaIntegration {
+    /// macOS only connects Shortcuts and Focus filters to apps signed by a developer team;
+    /// ad-hoc builds ship without the actions, so the app doesn't mention them either.
+    static let isAvailable: Bool = {
+        var code: SecCode?
+        var staticCode: SecStaticCode?
+        var info: CFDictionary?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+              SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
+              SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
+              let details = info as? [String: Any] else { return false }
+        return (details[kSecCodeInfoTeamIdentifier as String] as? String).map { !$0.isEmpty } ?? false
+    }()
+
+    static func refreshShortcutPhrases() {
+        guard isAvailable else { return }
+        BrisaShortcuts.updateAppShortcutParameters()
     }
 }
 

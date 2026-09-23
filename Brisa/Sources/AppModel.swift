@@ -168,7 +168,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in self?.recoverAudioEngine() }
         }
         integration = SystemIntegration(model: self)
-        BrisaShortcuts.updateAppShortcutParameters()
+        BrisaIntegration.refreshShortcutPhrases()
         YouTubeVideoPlayer.shared.onTitle = { [weak self] id, title in self?.updateVideoTitle(soundID: id, title: title) }
         synchronizeAudio()
     }
@@ -246,7 +246,7 @@ final class AppModel: ObservableObject {
     func persistMixes() {
         if let data = try? JSONEncoder().encode(mixes) { UserDefaults.standard.set(data, forKey: "mixes") }
         // Lets Siri and Spotlight offer "Play <mix name> in Brisa" for the current mixes.
-        BrisaShortcuts.updateAppShortcutParameters()
+        BrisaIntegration.refreshShortcutPhrases()
     }
     func persistImportedSounds() { if let data = try? JSONEncoder().encode(importedSounds) { UserDefaults.standard.set(data, forKey: "importedSounds") } }
 
