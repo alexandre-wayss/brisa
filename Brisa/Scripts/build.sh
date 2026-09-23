@@ -72,6 +72,20 @@ rm -rf "${output_dir}"
 ditto --norsrc --noextattr --noacl "${clean_app}" "${output_dir}"
 rm -rf "${clean_app:h}"
 xattr -cr "${output_dir}"
-codesign --force --sign - --identifier local.brisa.ambient "${output_dir}"
+# Shortcuts and Focus filters only talk to apps signed by a developer team. Use BRISA_SIGN_IDENTITY,
+# else the first Developer ID or Apple Development certificate in the keychain, else an ad-hoc signature.
+sign_identity="${BRISA_SIGN_IDENTITY:-}"
+if [[ -z "${sign_identity}" ]]; then
+  identities="$(security find-identity -v -p codesigning 2>/dev/null)"
+  sign_identity="$(print -r -- "${identities}" | grep -m1 '"Developer ID Application' | sed -E 's/.*"(.*)"/\1/' || true)"
+  [[ -z "${sign_identity}" ]] && sign_identity="$(print -r -- "${identities}" | grep -m1 '"Apple Development' | sed -E 's/.*"(.*)"/\1/' || true)"
+fi
+if [[ -n "${sign_identity}" ]]; then
+  print "Assinando com: ${sign_identity}"
+  codesign --force --sign "${sign_identity}" --options runtime --identifier local.brisa.ambient "${output_dir}"
+else
+  print "Nenhum certificado encontrado: assinatura ad-hoc. Atalhos e filtros de Foco não vão funcionar neste build."
+  codesign --force --sign - --identifier local.brisa.ambient "${output_dir}"
+fi
 codesign --verify --deep --strict "${output_dir}"
 print "Build concluído: ${output_dir}"
