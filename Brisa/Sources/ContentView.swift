@@ -21,6 +21,7 @@ struct ContentView: View {
  @State private var showMixFileImporter=false
  @State private var notice:String?
  @State private var panEditing:String?
+ @State private var deletingMix:Mix?
  var mixFileType:UTType { UTType(filenameExtension:MixSharing.fileExtension,conformingTo:.json) ?? .json }
  func flash(_ text:String){notice=text;DispatchQueue.main.asyncAfter(deadline:.now()+3.5){if notice==text{notice=nil}}}
  func copyMixLink(_ mix:Mix){
@@ -56,8 +57,8 @@ struct ContentView: View {
   if category=="Most used" {return model.mostUsedSounds.prefix(16).filter(matchesSearch)}
   return model.availableLibrary.filter{(category=="All sounds" || category=="Favorites" && model.favorites.contains($0.id) || category==$0.category) && matchesSearch($0)}
  }
- func navTab(_ title:String,_ symbol:String,selected:Bool,action:@escaping()->Void)->some View {
-  Button(action:action){Label(title,systemImage:symbol).font(.system(size:13,weight:.medium).monospacedDigit()).padding(.horizontal,16).padding(.vertical,7).background(selected ? accent:.clear,in:Capsule()).foregroundStyle(selected ? onAccent:.primary).contentShape(Capsule())}.buttonStyle(.plain)
+ func navTab(_ title:@escaping()->String,_ symbol:String,selected:Bool,action:@escaping()->Void)->some View {
+  Button(action:action){Label{CountdownText(title)}icon:{Image(systemName:symbol)}.font(.system(size:13,weight:.medium).monospacedDigit()).padding(.horizontal,16).padding(.vertical,7).background(selected ? accent:.clear,in:Capsule()).foregroundStyle(selected ? onAccent:.primary).contentShape(Capsule())}.buttonStyle(.plain)
  }
  var body: some View {
  ZStack {
@@ -71,9 +72,9 @@ struct ContentView: View {
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
     HStack(spacing:4){
-     navTab("Sounds","waveform",selected:!showPomodoro && !showRoutines){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false;showRoutines=false}}
-     navTab(model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro","timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false}}
-     navTab("Routines","calendar.badge.clock",selected:showRoutines){withAnimation(.easeInOut(duration:0.2)){showRoutines=true;showPomodoro=false}}
+     navTab({"Sounds"},"waveform",selected:!showPomodoro && !showRoutines){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false;showRoutines=false}}
+     navTab({model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro"},"timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false}}
+     navTab({"Routines"},"calendar.badge.clock",selected:showRoutines){withAnimation(.easeInOut(duration:0.2)){showRoutines=true;showPomodoro=false}}
     }.padding(4).background(surface.opacity(0.07),in:Capsule())
     Spacer()
     HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(surface.opacity(0.08),in:Capsule()).opacity(showPomodoro || showRoutines ? 0:1).allowsHitTesting(!(showPomodoro || showRoutines)).accessibilityHidden(showPomodoro || showRoutines)
@@ -118,7 +119,7 @@ struct ContentView: View {
         }.buttonStyle(.plain)
          .accessibilityLabel(model.isPlaying && model.levels == mix.levels ? "Pause \(mix.name)":"Play \(mix.name)")
         Button{model.applyMix(mix)}label:{
-         VStack(alignment:.leading,spacing:5){Text(mix.name).font(.system(size:15,weight:.medium));Text("\(mix.levels.count) sons").font(.caption).foregroundStyle(.secondary)}
+         VStack(alignment:.leading,spacing:5){Text(mix.name).font(.system(size:15,weight:.medium));Text("\(mix.levels.count) sound\(mix.levels.count==1 ? "":"s")").font(.caption).foregroundStyle(.secondary)}
         }.buttonStyle(.plain)
         Spacer()
         if model.isPlaying && model.levels == mix.levels {Text("Playing").font(.caption).foregroundStyle(accent)}
@@ -127,7 +128,7 @@ struct ContentView: View {
          Button{exportMixFile(mix)}label:{Label("Export file…",systemImage:"square.and.arrow.up")}
         }label:{Image(systemName:"square.and.arrow.up")}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityLabel("Share \(mix.name)").help("Share mix")
         Button{editingMix=mix}label:{Image(systemName:"pencil")}.buttonStyle(.borderless).accessibilityLabel("Edit \(mix.name)").help("Edit mix")
-        Button{model.mixes.removeAll{$0.id==mix.id};model.persistMixes()}label:{Image(systemName:"trash")}.buttonStyle(.borderless).accessibilityLabel("Delete \(mix.name)")
+        Button{deletingMix=mix}label:{Image(systemName:"trash")}.buttonStyle(.borderless).accessibilityLabel("Delete \(mix.name)")
        }.padding(20).background(surface.opacity(0.04),in:RoundedRectangle(cornerRadius:14))
       }
      } else {
@@ -155,6 +156,10 @@ struct ContentView: View {
   Button("Cancel",role:.cancel){model.pendingSharedMix=nil}
  }message:{shared in Text("“\(shared.name)” has \(shared.levels.count) sound\(shared.levels.count==1 ? "":"s"): \(MixSharing.soundNames(in:shared)).")}
  .sheet(isPresented:$save){VStack(alignment:.leading,spacing:20){Text("Save mix").font(.title2);TextField("Mix name",text:$mixName);HStack{Button("Cancel"){save=false};Spacer();Button("Save"){model.saveMix(named:mixName.trimmingCharacters(in:.whitespaces));save=false;mixName=""}.disabled(mixName.trimmingCharacters(in:.whitespaces).isEmpty)}}.padding(30).frame(width:360)}
+ .confirmationDialog("Delete this mix?",isPresented:Binding(get:{deletingMix != nil},set:{if !$0{deletingMix=nil}}),presenting:deletingMix){mix in
+  Button("Delete “\(mix.name)”",role:.destructive){model.mixes.removeAll{$0.id==mix.id};model.persistMixes();deletingMix=nil}
+  Button("Cancel",role:.cancel){deletingMix=nil}
+ }message:{_ in Text("This can't be undone. Export or share the mix first if you want to keep a copy.")}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowSettings"))){_ in showSettings=true}
  .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
@@ -221,9 +226,9 @@ struct ContentView: View {
   Button{model.togglePlayback()}label:{Image(systemName:model.isPlaying ? "pause.fill":"play.fill").font(.system(size:21,weight:.bold)).foregroundStyle(onAccent).frame(width:56,height:56).background(accent,in:Circle()).shadow(color:accent.opacity(0.35),radius:12,y:5)}.buttonStyle(.plain).keyboardShortcut(.space,modifiers:[]).accessibilityLabel(model.isPlaying ? "Pause":"Play")
   VStack(alignment:.leading,spacing:6){HStack(spacing:7){Circle().fill(model.isPlaying ? accent:Color.secondary).frame(width:7,height:7);Text(model.isPlaying ? "Now playing" : "Ready to play").font(.system(size:14,weight:.semibold))};Text("\(model.levels.count) sounds in your mix").font(.system(size:11)).foregroundStyle(.secondary)}
   Spacer(minLength:8)
-  VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.masterVolume,in:0...1).frame(width:130).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume");Text("\(Int(model.masterVolume*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};Text(model.isPomodoroRunning ? "\(model.pomodoroPhase.title) · \(model.pomodoroTimeText)" : (model.remainingSeconds>0 ? String(format:"Ends in %02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"No timer")).font(.system(size:10)).foregroundStyle(.secondary)}
+  VStack(alignment:.trailing,spacing:6){HStack(spacing:8){Image(systemName:"speaker.wave.2").font(.caption).foregroundStyle(.secondary);Slider(value:$model.masterVolume,in:0...1).frame(width:130).onChange(of:model.masterVolume){_ in model.synchronizeAudio()}.accessibilityLabel("Master volume");Text("\(Int(model.masterVolume*100))%").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width:31)};CountdownText{model.isPomodoroRunning ? "\(model.pomodoroPhase.title) · \(model.pomodoroTimeText)" : (model.remainingSeconds>0 ? String(format:"Ends in %02d:%02d",model.remainingSeconds/60,model.remainingSeconds%60):"No timer")}.font(.system(size:10)).foregroundStyle(.secondary)}
   Button{model.livingMixEnabled.toggle()}label:{Image(systemName:"water.waves").font(.system(size:15,weight:.medium)).foregroundStyle(model.livingMixEnabled ? accent:.primary).frame(width:38,height:38).background(model.livingMixEnabled ? accent.opacity(0.22):surface.opacity(0.10),in:Circle())}.buttonStyle(.plain).help(model.livingMixEnabled ? "Living mix is on: volumes drift gently":"Living mix: let volumes drift gently").accessibilityLabel("Living mix").accessibilityValue(model.livingMixEnabled ? "On":"Off")
-  Menu{Button("Off"){model.remainingSeconds=0;model.synchronizeAudio()};ForEach([5,15,25,30,60,90],id:\.self){m in Button("\(m) minutes"){model.remainingSeconds=m*60;model.synchronizeAudio()}}}label:{Image(systemName:"timer").font(.system(size:15,weight:.medium)).frame(width:38,height:38).background(surface.opacity(0.10),in:Circle())}.menuStyle(.borderlessButton).fixedSize()
+  Menu{Button("Off"){model.remainingSeconds=0};ForEach(AppModel.sleepTimerOptions,id:\.self){m in Button("\(m) minutes"){model.remainingSeconds=m*60}}}label:{Image(systemName:"timer").font(.system(size:15,weight:.medium)).frame(width:38,height:38).background(surface.opacity(0.10),in:Circle())}.menuStyle(.borderlessButton).fixedSize().help("Sleep timer").accessibilityLabel("Sleep timer")
   Button("Clear"){model.levels=[:];model.isPlaying=false;model.synchronizeAudio()}.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).disabled(model.levels.isEmpty)
   Button{save=true}label:{Image(systemName:"plus").font(.system(size:13,weight:.bold)).frame(width:38,height:38).background(accent.opacity(0.20),in:Circle())}.buttonStyle(.plain).foregroundStyle(accent).accessibilityLabel("Save mix").disabled(model.levels.isEmpty)
  }.padding(16).background(.ultraThinMaterial,in:RoundedRectangle(cornerRadius:24)).overlay(RoundedRectangle(cornerRadius:24).stroke(surface.opacity(0.16),lineWidth:1).allowsHitTesting(false)).shadow(color:.black.opacity(0.22),radius:22,y:10)

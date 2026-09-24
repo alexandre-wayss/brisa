@@ -81,15 +81,24 @@ struct BrisaApp: App {
         MenuBarExtra {
             MenuBarPlayerView(model: model)
         } label: {
-            // While a Pomodoro is running (or paused mid-phase) the menu bar shows the countdown instead of the Brisa icon.
-            if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
-                Label(model.pomodoroTimeText, systemImage: model.isPomodoroRunning ? model.pomodoroPhase.symbol : "pause.fill")
-                    .labelStyle(.titleAndIcon).monospacedDigit()
-            } else {
-                Image(systemName: "wind")
-            }
+            MenuBarLabel(model: model)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+/// While a Pomodoro is running (or paused mid-phase) the menu bar shows the countdown instead of the Brisa icon.
+private struct MenuBarLabel: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var countdown = Countdown.shared
+
+    var body: some View {
+        if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
+            Label(model.pomodoroTimeText, systemImage: model.isPomodoroRunning ? model.pomodoroPhase.symbol : "pause.fill")
+                .labelStyle(.titleAndIcon).monospacedDigit()
+        } else {
+            Image(systemName: "wind")
+        }
     }
 }
 
@@ -229,6 +238,7 @@ private struct PlayerWaves: View {
 private struct LiveBrisaPlayer: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var desktop = BrisaDesktopPlayer.shared
+    @ObservedObject private var countdown = Countdown.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var heldPhase = 0.0
     @State private var lastRenderedPhase = 0.0
@@ -262,7 +272,7 @@ private struct LiveBrisaPlayer: View {
                     }.buttonStyle(.plain).accessibilityLabel("Close mini player")
                 }.foregroundStyle(mint)
                 Menu {
-                    ForEach(["Noise", "Water", "Nature", "Spaces", "Imported"], id: \.self) { category in
+                    ForEach(["Noise", "Water", "Nature", "Spaces", "Tones", "Imported"], id: \.self) { category in
                         Menu(category) {
                             ForEach(model.availableLibrary.filter { $0.category == category }) { sound in
                                 Button { model.replaceWith(sound) } label: { Label(sound.name, systemImage: sound.icon) }

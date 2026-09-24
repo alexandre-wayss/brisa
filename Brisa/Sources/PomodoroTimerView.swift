@@ -5,6 +5,7 @@ struct PomodoroTimerView: View {
     @ObservedObject private var themeStore = BrisaThemeStore.shared
     @ObservedObject private var widget = BrisaPomodoroWidget.shared
     @ObservedObject var model: AppModel
+    @ObservedObject private var countdown = Countdown.shared
     @State private var confirmClear = false
     @State private var showSettings = false
     @State private var editingTime = false
