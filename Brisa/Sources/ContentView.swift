@@ -16,6 +16,7 @@ struct ContentView: View {
  @State private var showImport=false
  @State private var showPomodoro=false
  @State private var showRoutines=false
+ @State private var showModes=false
  @State private var relinkingSound: ImportedSound?
  @ObservedObject private var videoPlayer=YouTubeVideoPlayer.shared
  @State private var showMixFileImporter=false
@@ -71,12 +72,13 @@ struct ContentView: View {
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
     HStack(spacing:4){
-     navTab("Sounds","waveform",selected:!showPomodoro && !showRoutines){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false;showRoutines=false}}
-     navTab(model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro","timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false}}
-     navTab("Routines","calendar.badge.clock",selected:showRoutines){withAnimation(.easeInOut(duration:0.2)){showRoutines=true;showPomodoro=false}}
+     navTab("Sounds","waveform",selected:!showPomodoro && !showRoutines && !showModes){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false;showRoutines=false;showModes=false}}
+     navTab(model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro","timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false;showModes=false}}
+     navTab("Routines","calendar.badge.clock",selected:showRoutines){withAnimation(.easeInOut(duration:0.2)){showRoutines=true;showPomodoro=false;showModes=false}}
+     navTab(model.activeMode?.name ?? "Modes","rectangle.3.group",selected:showModes){withAnimation(.easeInOut(duration:0.2)){showModes=true;showPomodoro=false;showRoutines=false}}
     }.padding(4).background(surface.opacity(0.07),in:Capsule())
     Spacer()
-    HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(surface.opacity(0.08),in:Capsule()).opacity(showPomodoro || showRoutines ? 0:1).allowsHitTesting(!(showPomodoro || showRoutines)).accessibilityHidden(showPomodoro || showRoutines)
+    HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(surface.opacity(0.08),in:Capsule()).opacity(showPomodoro || showRoutines || showModes ? 0:1).allowsHitTesting(!(showPomodoro || showRoutines || showModes)).accessibilityHidden(showPomodoro || showRoutines || showModes)
     Menu{
      Button{showImport=true}label:{Label("Import audio…",systemImage:"square.and.arrow.down")}
      Button{showInputSounds=true}label:{Label("Interaction sounds…",systemImage:"keyboard")}
@@ -84,7 +86,7 @@ struct ContentView: View {
      Button{showSettings=true}label:{Label("Settings…",systemImage:"gearshape")}
     }label:{Image(systemName:"ellipsis").font(.system(size:14,weight:.semibold)).foregroundStyle(.primary).frame(width:34,height:34).background(surface.opacity(0.08),in:Circle())}.menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize().help("Import audio, interaction sounds, settings")
    }.padding(.horizontal,34).padding(.top,25).padding(.bottom,18)
-   if showRoutines { RoutinesView(model:model) } else if showPomodoro { PomodoroTimerView(model:model) } else {
+   if showModes { ModesView(model:model) } else if showRoutines { RoutinesView(model:model) } else if showPomodoro { PomodoroTimerView(model:model) } else {
    ScrollView(.horizontal,showsIndicators:false){
     HStack(spacing:8){ForEach(categories,id:\.self){filter in
      Button{withAnimation(.easeInOut(duration:0.2)){category=filter}}label:{HStack(spacing:6){Image(systemName:icon(filter));Text(filter);if filter=="Favorites" && !model.favorites.isEmpty {Text("\(model.favorites.count)").foregroundStyle(category==filter ? Color.black.opacity(0.55):.secondary)}}.font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(category==filter ? accent:surface.opacity(0.07),in:Capsule()).foregroundStyle(category==filter ? onAccent:.primary)}.buttonStyle(.plain)
