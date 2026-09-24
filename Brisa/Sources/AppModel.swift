@@ -674,7 +674,7 @@ final class AppModel: ObservableObject {
         let finished = pomodoroPhase
         let wasRunning = isPomodoroRunning
         // The cycle position advances on skip too, so 25/5/25/5… always reaches the long break.
-        if finished == .work { completedPomodoros += 1 }
+        if finished == .work { completedPomodoros += 1; BreakStore.shared.clearCurrent() }
         if completed && finished == .work {
             let task = activePomodoroTask?.title ?? ""
             if let index = pomodoroTasks.firstIndex(where: { $0.id == activePomodoroTaskID }) { pomodoroTasks[index].completedSessions += 1 }
@@ -691,12 +691,36 @@ final class AppModel: ObservableObject {
         pomodoroEndDate = nil
         isPomodoroRunning = false
         applyPomodoroSoundscape()
+        if completed ? autoStartPomodoro : wasRunning { startPomodoro() }
         if completed {
-            notifyPomodoroTransition(from: finished, to: pomodoroPhase)
+            // The break screen says the same as the notification, so only one of them appears.
+            let screenShown = !isRestoringPomodoro && BreakScreen.shared.phaseEnded(from: finished)
+            if !screenShown { notifyPomodoroTransition(from: finished, to: pomodoroPhase) }
             if !isRestoringPomodoro { celebratePhaseEnd(finished) }
         }
-        if completed ? autoStartPomodoro : wasRunning { startPomodoro() }
         persistPomodoro()
+    }
+
+    /// Gives the current phase a new length without changing the default, keeping the time already spent.
+    func resizeCurrentPhase(minutes: Int) {
+        let total = min(max(minutes, 1), 180) * 60
+        let elapsed = max(0, pomodoroTotalSeconds - pomodoroRemainingSeconds)
+        pomodoroRemainingSeconds = max(total - elapsed, 60)
+        pomodoroTotalSeconds = max(total, elapsed + pomodoroRemainingSeconds)
+        if isPomodoroRunning { pomodoroEndDate = Date().addingTimeInterval(TimeInterval(pomodoroRemainingSeconds)) }
+        persistPomodoro()
+    }
+
+    /// Goes back to a break that just ended for a few more minutes, from the break screen.
+    func returnToBreak(_ phase: PomodoroPhase, minutes: Int) {
+        guard phase != .work else { return }
+        pomodoroEndDate = nil
+        isPomodoroRunning = false
+        pomodoroPhase = phase
+        pomodoroTotalSeconds = max(minutes, 1) * 60
+        pomodoroRemainingSeconds = pomodoroTotalSeconds
+        applyPomodoroSoundscape()
+        startPomodoro()
     }
 
     private func restorePomodoro() {

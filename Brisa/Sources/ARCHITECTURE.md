@@ -4,6 +4,7 @@
 - `AppModel.swift` owns persisted user state, mix actions, playback state, and timer state.
 - `SoundLibrary.swift` defines the available sounds and saved-mix value type.
 - `AudioBank.swift` generates and plays ambient audio layers.
+- `BreakActivities.swift` holds the break activities, what was done in each break, and the break screen settings; `BreakScreen.swift` shows the full-screen break screen between Pomodoro phases, and `BreakActivitiesView.swift` edits it.
 - `InputSounds.swift` manages optional keyboard and mouse feedback, including permissions.
 - `ContentView.swift`, `WelcomeView.swift`, `InputSoundsView.swift`, `MixEditor.swift`, and `MenuBarPlayerView.swift` each own one SwiftUI surface.
 

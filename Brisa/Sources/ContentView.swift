@@ -162,6 +162,7 @@ struct ContentView: View {
  }message:{_ in Text("This can't be undone. Export or share the mix first if you want to keep a copy.")}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowSettings"))){_ in showSettings=true}
+ .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowPomodoro"))){_ in _=BreakScreen.shared.takePomodoroRequest();withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false}}
  .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
  .fileImporter(isPresented:Binding(get:{relinkingSound != nil},set:{if !$0 {relinkingSound=nil}}),allowedContentTypes:[.wav,.aiff,.mp3],allowsMultipleSelection:false){result in
   guard let sound=relinkingSound else{return}; defer{relinkingSound=nil}
@@ -181,7 +182,7 @@ struct ContentView: View {
   }
  }
  .alert("Could not start audio",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("OK"){model.error=nil}}message:{Text(model.error ?? "")}
- .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true } }
+ .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true }; if BreakScreen.shared.takePomodoroRequest() {showPomodoro=true;showRoutines=false} }
  }
  func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Recent":return "clock";case "Most used":return "chart.bar";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Tones":return "headphones";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
  func empty(_ title:String,_ detail:String)->some View {VStack(spacing:12){Image(systemName:"wind").font(.largeTitle).foregroundStyle(accent);Text(title).font(.title3);Text(detail).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(.vertical,70)}

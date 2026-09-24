@@ -91,13 +91,21 @@ struct BrisaApp: App {
 private struct MenuBarLabel: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var countdown = Countdown.shared
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
-            Label(model.pomodoroTimeText, systemImage: model.isPomodoroRunning ? model.pomodoroPhase.symbol : "pause.fill")
-                .labelStyle(.titleAndIcon).monospacedDigit()
-        } else {
-            Image(systemName: "wind")
+        Group {
+            if model.isPomodoroRunning || model.pomodoroRemainingSeconds < model.pomodoroTotalSeconds {
+                Label(model.pomodoroTimeText, systemImage: model.isPomodoroRunning ? model.pomodoroPhase.symbol : "pause.fill")
+                    .labelStyle(.titleAndIcon).monospacedDigit()
+            } else {
+                Image(systemName: "wind")
+            }
+        }
+        // The menu bar icon lives while the main window is closed, so it can reopen it (the window's own listener is gone then).
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BrisaShowWindow"))) { _ in
+            guard !NSApp.windows.contains(where: { $0.title == "Brisa" && $0.isVisible }) else { return }
+            openWindow(id: "main")
         }
     }
 }
