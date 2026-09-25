@@ -240,6 +240,7 @@ struct RoutineEditor: View {
         case .playVideo: return RoutineAction(kind: kind, choice: model.youtubeVideos.first?.id ?? "")
         case .sleepTimer: return RoutineAction(kind: kind, number: 30)
         case .setVolume: return RoutineAction(kind: kind, number: 40)
+        case .startMode: return RoutineAction(kind: kind, choice: model.modes.first?.id.uuidString ?? "")
         default: return RoutineAction(kind: kind)
         }
     }
@@ -266,7 +267,8 @@ struct RoutineEditor: View {
                         Text("\(value.number)%").font(.callout.monospacedDigit()).frame(width: 40, alignment: .trailing) }
                 case .notify:
                     TextField("Reminder text", text: action.text).textFieldStyle(.roundedBorder)
-                case .stopSounds, .stopFocus: EmptyView()
+                case .startMode: modePicker(action.choice)
+                case .stopSounds, .stopFocus, .endMode: EmptyView()
                 }
             }
             Spacer(minLength: 0)
@@ -286,18 +288,16 @@ struct RoutineEditor: View {
     }
 
     private func soundPicker(_ choice: Binding<String>) -> some View {
-        Picker("", selection: choice) {
-            Section("Scenes") { ForEach(RoutineSounds.scenes) { Text($0.name).tag("scene:\($0.id)") } }
-            ForEach(PomodoroPhase.allCases, id: \.self) { phase in
-                Section("\(phase.title) suggestions") {
-                    ForEach(phase.presets) { Text($0.name).tag("preset:\(phase.rawValue).\($0.id)") }
-                }
-            }
-            if !model.mixes.isEmpty {
-                Section("My mixes") { ForEach(model.mixes) { Text($0.name).tag("mix:\($0.id.uuidString)") } }
-            }
-            Section("Single sound") { ForEach(model.availableLibrary) { Text($0.name).tag($0.id) } }
-        }.labelsHidden()
+        SoundChoicePicker(model: model, choice: choice)
+    }
+
+    @ViewBuilder
+    private func modePicker(_ choice: Binding<String>) -> some View {
+        if model.modes.isEmpty {
+            Text("Create a mode in the Modes tab first.").font(.caption).foregroundStyle(.secondary)
+        } else {
+            Picker("", selection: choice) { ForEach(model.modes) { Label($0.name, systemImage: $0.symbol).tag($0.id.uuidString) } }.labelsHidden()
+        }
     }
 
     private func taskPicker(_ choice: Binding<String>) -> some View {
@@ -314,5 +314,28 @@ struct RoutineEditor: View {
         } else {
             Picker("", selection: choice) { ForEach(model.youtubeVideos) { Text($0.name).tag($0.id) } }.labelsHidden()
         }
+    }
+}
+
+/// Scenes, suggestions, saved mixes and single sounds, in the choice format Routines and Modes store.
+struct SoundChoicePicker: View {
+    @ObservedObject var model: AppModel
+    @Binding var choice: String
+    var allowsNone = false
+
+    var body: some View {
+        Picker("", selection: $choice) {
+            if allowsNone { Text("No sound").tag("") }
+            Section("Scenes") { ForEach(RoutineSounds.scenes) { Text($0.name).tag("scene:\($0.id)") } }
+            ForEach(PomodoroPhase.allCases, id: \.self) { phase in
+                Section("\(phase.title) suggestions") {
+                    ForEach(phase.presets) { Text($0.name).tag("preset:\(phase.rawValue).\($0.id)") }
+                }
+            }
+            if !model.mixes.isEmpty {
+                Section("My mixes") { ForEach(model.mixes) { Text($0.name).tag("mix:\($0.id.uuidString)") } }
+            }
+            Section("Single sound") { ForEach(model.availableLibrary) { Text($0.name).tag($0.id) } }
+        }.labelsHidden()
     }
 }

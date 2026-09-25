@@ -60,13 +60,40 @@ struct SoundQuery: EntityStringQuery {
     }
 }
 
+struct ModeEntity: AppEntity {
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Mode"
+    static let defaultQuery = ModeQuery()
+
+    let id: UUID
+    let name: String
+
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
+
+    init(_ mode: BrisaMode) { id = mode.id; name = mode.name }
+}
+
+struct ModeQuery: EntityStringQuery {
+    @MainActor func entities(for identifiers: [UUID]) async throws -> [ModeEntity] {
+        AppModel.shared.modes.filter { identifiers.contains($0.id) }.map(ModeEntity.init)
+    }
+
+    @MainActor func suggestedEntities() async throws -> [ModeEntity] {
+        AppModel.shared.modes.map(ModeEntity.init)
+    }
+
+    @MainActor func entities(matching string: String) async throws -> [ModeEntity] {
+        AppModel.shared.modes.filter { $0.name.localizedCaseInsensitiveContains(string) }.map(ModeEntity.init)
+    }
+}
+
 enum BrisaIntentError: Error, CustomLocalizedStringResourceConvertible {
-    case mixNotFound, soundNotFound
+    case mixNotFound, soundNotFound, modeNotFound
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .mixNotFound: return "That mix no longer exists in Brisa."
         case .soundNotFound: return "That sound is no longer in Brisa's library."
+        case .modeNotFound: return "That mode no longer exists in Brisa."
         }
     }
 }
@@ -154,6 +181,34 @@ struct SetSleepTimerIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult {
         let model = AppModel.shared
         model.remainingSeconds = max(0, minutes) * 60
+        return .result()
+    }
+}
+
+// MARK: - Modes
+
+struct StartModeIntent: AppIntent {
+    static let title: LocalizedStringResource = "Start Mode"
+    static let description = IntentDescription("Opens a Brisa mode's apps, arranges their windows, and starts its sound and focus session.")
+
+    @Parameter(title: "Mode") var mode: ModeEntity
+
+    static var parameterSummary: some ParameterSummary { Summary("Start \(\.$mode)") }
+
+    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
+        let model = AppModel.shared
+        guard let saved = model.modes.first(where: { $0.id == mode.id }) else { throw BrisaIntentError.modeNotFound }
+        model.startMode(saved)
+        return .result(dialog: "\(saved.name) started.")
+    }
+}
+
+struct EndModeIntent: AppIntent {
+    static let title: LocalizedStringResource = "End Mode"
+    static let description = IntentDescription("Ends the current Brisa mode: stops sounds and the focus timer and puts its apps away.")
+
+    @MainActor func perform() async throws -> some IntentResult {
+        AppModel.shared.endMode()
         return .result()
     }
 }
@@ -271,6 +326,10 @@ struct BrisaShortcuts: AppShortcutsProvider {
             "Resume \(.applicationName)",
             "Resume sounds in \(.applicationName)"
         ], shortTitle: "Resume Sounds", systemImageName: "play.circle")
+        AppShortcut(intent: StartModeIntent(), phrases: [
+            "Start \(\.$mode) in \(.applicationName)",
+            "Start my \(\.$mode) mode in \(.applicationName)"
+        ], shortTitle: "Start Mode", systemImageName: "rectangle.3.group")
         AppShortcut(intent: StartFocusSessionIntent(), phrases: [
             "Start a focus session in \(.applicationName)",
             "Start focusing with \(.applicationName)"

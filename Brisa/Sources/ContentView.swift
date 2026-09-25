@@ -16,6 +16,7 @@ struct ContentView: View {
  @State private var showImport=false
  @State private var showPomodoro=false
  @State private var showRoutines=false
+ @State private var showModes=false
  @State private var relinkingSound: ImportedSound?
  @ObservedObject private var videoPlayer=YouTubeVideoPlayer.shared
  @State private var showMixFileImporter=false
@@ -72,12 +73,13 @@ struct ContentView: View {
     HStack(spacing:9){Image(systemName:"wind").font(.system(size:21,weight:.medium));Text("brisa").font(.system(size:24,weight:.semibold,design:.rounded))}.foregroundStyle(accent)
     Spacer()
     HStack(spacing:4){
-     navTab({"Sounds"},"waveform",selected:!showPomodoro && !showRoutines){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false;showRoutines=false}}
-     navTab({model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro"},"timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false}}
-     navTab({"Routines"},"calendar.badge.clock",selected:showRoutines){withAnimation(.easeInOut(duration:0.2)){showRoutines=true;showPomodoro=false}}
+     navTab({"Sounds"},"waveform",selected:!showPomodoro && !showRoutines && !showModes){withAnimation(.easeInOut(duration:0.2)){showPomodoro=false;showRoutines=false;showModes=false}}
+     navTab({model.isPomodoroRunning ? model.pomodoroTimeText : "Pomodoro"},"timer",selected:showPomodoro){withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false;showModes=false}}
+     navTab({"Routines"},"calendar.badge.clock",selected:showRoutines){withAnimation(.easeInOut(duration:0.2)){showRoutines=true;showPomodoro=false;showModes=false}}
+     navTab({model.activeMode?.name ?? "Modes"},"rectangle.3.group",selected:showModes){withAnimation(.easeInOut(duration:0.2)){showModes=true;showPomodoro=false;showRoutines=false}}
     }.padding(4).background(surface.opacity(0.07),in:Capsule())
     Spacer()
-    HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(surface.opacity(0.08),in:Capsule()).opacity(showPomodoro || showRoutines ? 0:1).allowsHitTesting(!(showPomodoro || showRoutines)).accessibilityHidden(showPomodoro || showRoutines)
+    HStack(spacing:7){Image(systemName:"magnifyingglass").foregroundStyle(.secondary);TextField("Search",text:$search).textFieldStyle(.plain).frame(width:150)}.padding(.horizontal,13).padding(.vertical,9).background(surface.opacity(0.08),in:Capsule()).opacity(showPomodoro || showRoutines || showModes ? 0:1).allowsHitTesting(!(showPomodoro || showRoutines || showModes)).accessibilityHidden(showPomodoro || showRoutines || showModes)
     Menu{
      Button{showImport=true}label:{Label("Import audio…",systemImage:"square.and.arrow.down")}
      Button{showInputSounds=true}label:{Label("Interaction sounds…",systemImage:"keyboard")}
@@ -85,7 +87,7 @@ struct ContentView: View {
      Button{showSettings=true}label:{Label("Settings…",systemImage:"gearshape")}
     }label:{Image(systemName:"ellipsis").font(.system(size:14,weight:.semibold)).foregroundStyle(.primary).frame(width:34,height:34).background(surface.opacity(0.08),in:Circle())}.menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize().help("Import audio, interaction sounds, settings")
    }.padding(.horizontal,34).padding(.top,25).padding(.bottom,18)
-   if showRoutines { RoutinesView(model:model) } else if showPomodoro { PomodoroTimerView(model:model) } else {
+   if showModes { ModesView(model:model) } else if showRoutines { RoutinesView(model:model) } else if showPomodoro { PomodoroTimerView(model:model) } else {
    ScrollView(.horizontal,showsIndicators:false){
     HStack(spacing:8){ForEach(categories,id:\.self){filter in
      Button{withAnimation(.easeInOut(duration:0.2)){category=filter}}label:{HStack(spacing:6){Image(systemName:icon(filter));Text(filter);if filter=="Favorites" && !model.favorites.isEmpty {Text("\(model.favorites.count)").foregroundStyle(category==filter ? Color.black.opacity(0.55):.secondary)}}.font(.system(size:12,weight:.medium)).padding(.horizontal,13).padding(.vertical,9).background(category==filter ? accent:surface.opacity(0.07),in:Capsule()).foregroundStyle(category==filter ? onAccent:.primary)}.buttonStyle(.plain)
@@ -162,7 +164,7 @@ struct ContentView: View {
  }message:{_ in Text("This can't be undone. Export or share the mix first if you want to keep a copy.")}
  .sheet(isPresented:$showSettings){BrisaWidgetSettings(model:model)}
  .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowSettings"))){_ in showSettings=true}
- .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowPomodoro"))){_ in _=BreakScreen.shared.takePomodoroRequest();withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false}}
+ .onReceive(NotificationCenter.default.publisher(for:Notification.Name("BrisaShowPomodoro"))){_ in _=BreakScreen.shared.takePomodoroRequest();withAnimation(.easeInOut(duration:0.2)){showPomodoro=true;showRoutines=false;showModes=false}}
  .sheet(isPresented:$showImport){ImportSoundsView(model:model)}
  .fileImporter(isPresented:Binding(get:{relinkingSound != nil},set:{if !$0 {relinkingSound=nil}}),allowedContentTypes:[.wav,.aiff,.mp3],allowsMultipleSelection:false){result in
   guard let sound=relinkingSound else{return}; defer{relinkingSound=nil}
@@ -182,7 +184,7 @@ struct ContentView: View {
   }
  }
  .alert("Could not start audio",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("OK"){model.error=nil}}message:{Text(model.error ?? "")}
- .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true }; if BreakScreen.shared.takePomodoroRequest() {showPomodoro=true;showRoutines=false} }
+ .onAppear { if !UserDefaults.standard.bool(forKey:"didSeeWelcome") { showWelcome=true }; if BreakScreen.shared.takePomodoroRequest() {showPomodoro=true;showRoutines=false;showModes=false} }
  }
  func icon(_ c:String)->String {switch c {case "Favorites":return "heart";case "Recent":return "clock";case "Most used":return "chart.bar";case "Noise":return "waveform";case "Water":return "drop";case "Nature":return "leaf";case "Spaces":return "building.2";case "Tones":return "headphones";case "Imported":return "square.and.arrow.down";case "My mixes":return "slider.horizontal.3";default:return "square.grid.2x2"}}
  func empty(_ title:String,_ detail:String)->some View {VStack(spacing:12){Image(systemName:"wind").font(.largeTitle).foregroundStyle(accent);Text(title).font(.title3);Text(detail).foregroundStyle(.secondary)}.frame(maxWidth:.infinity).padding(.vertical,70)}

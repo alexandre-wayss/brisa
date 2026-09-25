@@ -167,6 +167,10 @@ final class AppModel: ObservableObject {
     var focusStartedSounds = false
     var focusStartedSession = false
     @Published var routines: [Routine] = [] { didSet { persistRoutines() } }
+    @Published var modes: [BrisaMode] = [] { didSet { persistModes() } }
+    @Published var activeModeID: UUID? { didSet { UserDefaults.standard.set(activeModeID?.uuidString, forKey: "activeMode") } }
+    /// Distracting apps the active mode hid, shown again when it ends.
+    var hiddenByMode: Set<String> = [] { didSet { UserDefaults.standard.set(Array(hiddenByMode), forKey: "hiddenByMode") } }
     var lastRoutineCheck = Date()
     var lastRoutineCheckSaved = Date.distantPast
 
@@ -203,6 +207,7 @@ final class AppModel: ObservableObject {
                 if let error { self.error = error.localizedDescription } else { self.synchronizeAudio() }
             }
         }
+        loadModes()
         audio.importedURL = { [weak self] id in self?.importedSounds.first(where: { $0.id == id }).flatMap { $0.storedFile }.map(URL.init(fileURLWithPath:)) }
         volumeBeforeMute = masterVolume > 0 ? masterVolume : 0.65
         restorePomodoro()
