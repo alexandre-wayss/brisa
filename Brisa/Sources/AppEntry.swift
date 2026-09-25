@@ -71,11 +71,11 @@ struct BrisaApp: App {
                     Button("Settings…") { NotificationCenter.default.post(name: Notification.Name("BrisaShowSettings"), object: nil) }
                         .keyboardShortcut(",")
                 }
+                // ⌘Q quits, like any Mac app. Closing the window (⌘W) keeps Brisa running in the menu bar.
                 CommandGroup(replacing: .appTermination) {
                     Button("Keep Running in Menu Bar") { BrisaWindowActions.moveToMenuBar() }
+                    Button("Quit Brisa") { NSApp.terminate(nil) }
                         .keyboardShortcut("q")
-                    Button("Quit Brisa Completely") { NSApp.terminate(nil) }
-                        .keyboardShortcut("q", modifiers: [.command, .option])
                 }
             }
         MenuBarExtra {

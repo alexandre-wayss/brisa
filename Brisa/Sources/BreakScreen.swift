@@ -7,6 +7,11 @@ final class BreakScreenPanel: NSPanel {
     override var canBecomeMain: Bool { true }
 }
 
+/// Acts on the first click even when another app was in front, instead of spending it on focusing the window.
+final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 /// The full-screen moment between phases: a focus session ended and a break begins (pick what to do in it),
 /// or a break ended and focus is next.
 @MainActor
@@ -28,6 +33,8 @@ final class BreakScreen: ObservableObject {
     @Published private(set) var generation = 0
     private(set) var isShown = false
     private var panels: [NSPanel] = []
+    /// The app that was in front before the screen appeared; it gets the focus back afterwards.
+    private var previousApp: NSRunningApplication?
     private var pomodoroRequested = false
 
     private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
@@ -67,11 +74,17 @@ final class BreakScreen: ObservableObject {
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 
-    func close() {
+    /// Closes the screen. `restoreFocus` hands the keyboard back to the app that was in front, unless
+    /// something else (an app an activity opened, Brisa's own window) should have it.
+    func close(restoreFocus: Bool = true) {
         guard isShown else { return }
         isShown = false
         let closing = panels
         panels = []
+        if restoreFocus, let previousApp, previousApp != NSRunningApplication.current, !previousApp.isTerminated {
+            previousApp.activate()
+        }
+        previousApp = nil
         guard !reduceMotion else { closing.forEach { $0.orderOut(nil) }; return }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.25
@@ -96,7 +109,7 @@ final class BreakScreen: ObservableObject {
         }
         let target = activity.flatMap { BreakActivities.target($0.opens) }
         // Something that opens an app or a site needs the screen out of the way.
-        if store.staysOpen, target == nil { moment = .duringBreak } else { close() }
+        if store.staysOpen, target == nil { moment = .duringBreak } else { close(restoreFocus: target == nil) }
         if let target { open(target) }
     }
 
@@ -128,7 +141,7 @@ final class BreakScreen: ObservableObject {
 
     /// Opens the Pomodoro page, where the break activities are edited.
     func openSettings() {
-        close()
+        close(restoreFocus: false)
         pomodoroRequested = true
         BrisaWindowActions.showInDock()
         NotificationCenter.default.post(name: Notification.Name("BrisaShowWindow"), object: nil)
@@ -158,20 +171,23 @@ final class BreakScreen: ObservableObject {
     // MARK: Windows
 
     private func present() {
+        // Brisa comes to the front so clicks, typing, Return and Escape reach the screen straight away.
+        let front = NSWorkspace.shared.frontmostApplication
+        previousApp = front == NSRunningApplication.current ? nil : front
+        NSApp.activate(ignoringOtherApps: true)
         let mouse = NSEvent.mouseLocation
         guard let main = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main else { return }
         for screen in NSScreen.screens where screen == main || BreakStore.shared.dimOtherDisplays {
             let isMain = screen == main
-            let panel = BreakScreenPanel(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            let panel = BreakScreenPanel(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
             panel.isReleasedWhenClosed = false
             panel.isOpaque = false
             panel.backgroundColor = .clear
             panel.hasShadow = false
             panel.hidesOnDeactivate = false
-            panel.becomesKeyOnlyIfNeeded = false
             panel.level = .screenSaver
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-            panel.contentView = isMain ? NSHostingView(rootView: BreakScreenView(model: .shared)) : NSHostingView(rootView: BreakBackdrop())
+            panel.contentView = isMain ? FirstClickHostingView(rootView: BreakScreenView(model: .shared)) : FirstClickHostingView(rootView: BreakBackdrop())
             panel.setFrame(screen.frame, display: false)
             panel.alphaValue = reduceMotion ? 1 : 0
             if isMain { panel.makeKeyAndOrderFront(nil) } else { panel.orderFrontRegardless() }
@@ -208,7 +224,6 @@ struct BreakScreenView: View {
     @ObservedObject private var screen = BreakScreen.shared
     @ObservedObject private var store = BreakStore.shared
     @ObservedObject private var themeStore = BrisaThemeStore.shared
-    @ObservedObject private var countdown = Countdown.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedID: UUID?
     @State private var custom = ""
@@ -244,7 +259,7 @@ struct BreakScreenView: View {
                 ScrollView {
                     VStack(spacing: 30) {
                         header
-                        clock
+                        BreakClock(model: model, moment: screen.moment, isPreview: screen.isPreview, tint: tint, previewMinutes: previewMinutes)
                         switch screen.moment {
                         case .breakStarting: chooser
                         case .duringBreak: doing
@@ -288,7 +303,7 @@ struct BreakScreenView: View {
         saveCustom = false
     }
 
-    // MARK: Header and clock
+    // MARK: Header
 
     private var header: some View {
         VStack(spacing: 10) {
@@ -327,32 +342,6 @@ struct BreakScreenView: View {
         case .backToFocus:
             if let task = model.activePomodoroTask { return "Next up: \(task.title)" }
             return store.current.map { "You took a break to: \($0.title.lowercased())" }
-        }
-    }
-
-    private var clock: some View {
-        let running = model.isPomodoroRunning && !screen.isPreview
-        let status: String
-        switch screen.moment {
-        case .breakStarting, .duringBreak: status = running ? "Break in progress" : "Your break starts when you're ready"
-        case .backToFocus: status = running ? "Focus started" : "Focus starts when you're ready"
-        }
-        return VStack(spacing: 8) {
-            Group {
-                if screen.isPreview {
-                    Text(String(format: "%02d:00", previewMinutes))
-                } else {
-                    Text(model.pomodoroTimeText)
-                }
-            }
-            .font(.system(size: 92, weight: .ultraLight, design: .rounded).monospacedDigit())
-            .accessibilityLabel("Time remaining \(screen.isPreview ? "\(previewMinutes) minutes" : model.pomodoroTimeText)")
-            Capsule().fill(surface.opacity(0.1)).frame(width: 260, height: 4)
-                .overlay(alignment: .leading) {
-                    Capsule().fill(tint).frame(width: 260 * (screen.isPreview ? 0 : model.pomodoroProgress), height: 4)
-                }
-                .accessibilityHidden(true)
-            Text(status).font(.caption.weight(.semibold)).tracking(1).textCase(.uppercase).foregroundStyle(.secondary)
         }
     }
 
@@ -455,8 +444,6 @@ struct BreakScreenView: View {
             .contentShape(RoundedRectangle(cornerRadius: 18))
         }
         .buttonStyle(.plain)
-        .simultaneousGesture(TapGesture(count: 2).onEnded { selectedID = activity.id; custom = ""; start() })
-        .help("Double-click to start the break with this")
         .accessibilityLabel(activity.note.isEmpty ? activity.title : "\(activity.title), \(activity.note)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -499,6 +486,37 @@ struct BreakScreenView: View {
                     .padding(.horizontal, 28).frame(height: 46).background(tint, in: Capsule()).foregroundStyle(onAccent)
             }
             .buttonStyle(.plain).keyboardShortcut(.defaultAction)
+        }
+    }
+}
+
+/// The countdown on the break screen. The only part that redraws every second, so clicks elsewhere are never interrupted.
+private struct BreakClock: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var countdown = Countdown.shared
+    let moment: BreakScreen.Moment
+    let isPreview: Bool
+    let tint: Color
+    let previewMinutes: Int
+
+    var body: some View {
+        let running = model.isPomodoroRunning && !isPreview
+        let status: String
+        switch moment {
+        case .breakStarting, .duringBreak: status = running ? "Break in progress" : "Your break starts when you're ready"
+        case .backToFocus: status = running ? "Focus started" : "Focus starts when you're ready"
+        }
+        let time = isPreview ? String(format: "%02d:00", previewMinutes) : model.pomodoroTimeText
+        return VStack(spacing: 8) {
+            Text(time)
+                .font(.system(size: 92, weight: .ultraLight, design: .rounded).monospacedDigit())
+                .accessibilityLabel("Time remaining \(time)")
+            Capsule().fill(surface.opacity(0.1)).frame(width: 260, height: 4)
+                .overlay(alignment: .leading) {
+                    Capsule().fill(tint).frame(width: 260 * (isPreview ? 0 : model.pomodoroProgress), height: 4)
+                }
+                .accessibilityHidden(true)
+            Text(status).font(.caption.weight(.semibold)).tracking(1).textCase(.uppercase).foregroundStyle(.secondary)
         }
     }
 }

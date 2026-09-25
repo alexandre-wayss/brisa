@@ -33,7 +33,7 @@ Brisa is a native macOS app for focus, rest, and sleep. Build an ambient soundsc
 
 ### Around your Mac
 
-- **Menu bar player** with play, mute, volume, sleep timer, quick sound switching and modes. **Keep Running in Menu Bar** (⌘Q) hides the window; **Quit Brisa Completely** is ⌥⌘Q.
+- **Menu bar player** with play, mute, volume, sleep timer, quick sound switching and modes. Closing the window (⌘W) keeps Brisa running there, so routines and timers carry on; ⌘Q quits.
 - **Desktop widgets**: a glass mini player and a Pomodoro timer (see below).
 - **Themes**: Sage, Dark, Light, Ocean and Warm, previewed before you apply them.
 - **Shortcuts, Siri and Spotlight**: play a mix or sound, pause, resume, set the volume, set the sleep timer, or start and pause a focus session. A **Focus filter** plays a mix and starts a focus session when a Focus turns on (System Settings → Focus → Focus filters → Brisa) and stops them when it ends. macOS only allows this for apps signed by a developer team: builds from source get it when an Apple Development certificate is in the keychain (a free Apple account in Xcode → Settings → Accounts is enough); the downloadable DMG does not include it yet.
