@@ -46,7 +46,7 @@ Open **Settings → Widgets** to add the **mini player** (play, pause, volume, a
 
 ## Install
 
-Download `Brisa-macOS-arm64.dmg` from the [latest release](https://github.com/alexandre-wayss/brisa/releases/latest) and drag Brisa to Applications. The app is not notarized yet, so the first time macOS blocks it: right-click Brisa in Applications and choose **Open**, or run `xattr -d com.apple.quarantine /Applications/Brisa.app`. Requires macOS 14 on Apple silicon.
+Download `Brisa-macOS-arm64.dmg` from the [latest release](https://github.com/masterCorehub/brisa/releases/latest) and drag Brisa to Applications. The app is not notarized yet, so the first time macOS blocks it: right-click Brisa in Applications and choose **Open**, or run `xattr -d com.apple.quarantine /Applications/Brisa.app`. Requires macOS 14 on Apple silicon.
 
 ## Build from source
 
